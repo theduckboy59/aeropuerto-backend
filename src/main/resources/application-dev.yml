@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/aeropuerto_los_primos   # URL de conexión a PostgreSQL
+    username: postgres                                            # Usuario de la base de datos
+    password: ${DB_PASSWORD}                                      # Password desde variable de entorno
+    driver-class-name: org.postgresql.Driver                      # Driver JDBC
+
+  jpa:
+    hibernate:
+      ddl-auto: none                                              # Hibernate no modifica la BD
+    show-sql: true                                                # Muestra SQL en consola
+    properties:
+      hibernate:
+        format_sql: true                                          # Formatea SQL para mejor lectura
+
+  flyway:
+    enabled: true                                                 # Activa migraciones con Flyway
+    locations: classpath:db/migration                             # Ruta de scripts SQL
+    baseline-on-migrate: true                                     # Permite iniciar sobre BD existente
+
+server:
+  port: 8080                                                      # Puerto del servidor                                    # Puerto donde corre la app

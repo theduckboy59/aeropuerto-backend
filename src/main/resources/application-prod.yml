@@ -1,0 +1,23 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://aeropuerto-db.cmlkiwy4w3cp.us-east-1.rds.amazonaws.com:5432/aeropuerto
+    # Conexión a PostgreSQL en AWS RDS (host remoto, puerto 5432, DB aeropuerto)
+
+    username: postgres
+    # Usuario de la base de datos
+
+    password: ${DB_PASSWORD_AWS}
+    # Password desde variable de entorno (no expuesto en código)
+
+    driver-class-name: org.postgresql.Driver
+    # Driver JDBC de PostgreSQL
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+      # Hibernate solo valida que la estructura coincida con las entidades
+      # NO crea ni modifica tablas
+
+server:
+  port: 8080
+  # Puerto de la aplicación

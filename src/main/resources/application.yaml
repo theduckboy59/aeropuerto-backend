@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: aeropuertolosprimos   # Nombre lógico de la app (identificación en logs, Spring Cloud, etc.)
+
+  profiles:
+    active: dev                 # Activa el perfil "dev" → carga application-dev.yml o propiedades específicas de desarrollo
+
+  docker:
+    compose:
+      enabled: false            # Desactiva la integración automática con docker-compose (Spring Boot no levanta contenedores)
