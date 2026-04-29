@@ -1,25 +1,31 @@
-# Integración de registro: `User` y `Pasajero`
+# Cambios recientes (modelo de datos y migraciones)
 
-Resumen:
-- El sistema actualmente tiene un CRUD para `User`.
-- Los registros de "pasajeros" deberán usar la clase `User` para los datos de cuenta/registro.
-- Cuando un usuario se registre, deberá completarse tanto la tabla `users` como la tabla `pasajero` con los campos correspondientes.
-- En consecuencia, el CRUD actual de `User` quedará obsoleto para el flujo de registro combinado (no hacer cambios de código ahora).
+Ultima actualizacion registrada: `c024ac2` (2026-04-28) - "modelos base `User`, `Pasajero` y `Empleado` con catalogos y migraciones Flyway".
 
-Detalles operativos esperados:
-- Flujo de registro combinado:
-  - Recibir datos requeridos por `users` (por ejemplo: email, password, roles, etc.).
-  - Recibir datos requeridos por `pasajero` (por ejemplo: tipo_documento_id, numero_documento, nombre_completo, fecha_nacimiento, nacionalidad_id, telefono, direccion, etc.).
-  - En una única operación transaccional, crear el `User` y luego crear el `Pasajero` asociado con `user_id` apuntando al `User` creado.
-  - Validaciones: unicidad de email/numero_documento, formatos, y campos obligatorios.
+## Resumen actual
+- Se estandariza el modelo de datos para `Pasajero` y `Empleado`, junto con catalogos asociados.
+- Se agregan migraciones Flyway para crear tablas e insertar catalogos iniciales.
+- En este momento **no hay CRUD/REST implementado** en el repositorio para `User`/`Pasajero`/`Empleado` (se removieron controladores/servicios anteriores).
 
-Notas y decisiones actuales:
-- No se modifica el código existente en este momento.
-- El `UserController` y los servicios existentes siguen en el repo, pero el flujo de registro futuro deberá delegar a un nuevo controlador/servicio o extender el existente para crear ambas entidades en una transacción.
+## Lo que se agrego
+- Modelos (JPA) de catalogos y entidades:
+  - `Area`, `CodigoArea`, `Empleado`, `Licencia`, `Nacionalidad`, `NivelAcceso`, `Pasajero`, `Rol`, `TipoDocumento`, `TipoEmpleado`, `Turno`.
+- Migraciones Flyway:
+  - `V2__create_pasajero.sql`: crea `tipo_documento`, `nacionalidad`, `codigo_area`, `pasajero` e inserta valores iniciales.
+  - `V3__create_empleado.sql`: crea `tipo_empleado`, `turno`, `nivel_acceso`, `rol`, `area`, `licencia`, `empleado` e inserta valores iniciales.
 
-Siguientes pasos sugeridos (opcionales):
-- Implementar un endpoint `POST /register` que reciba un DTO con campos de `User` + `Pasajero`.
-- Implementar un servicio que ejecute la creación de `User` y `Pasajero` en una transacción.
-- Añadir pruebas de integración para el flujo de registro.
+## Lo que se elimino
+- Se removio la capa REST/servicios previa de `User`:
+  - `src/main/java/com/aeropuertolosprimos/backend/AeropuertolosprimosApplication.java`.
+  - `src/main/java/com/aeropuertolosprimos/backend/controller/UserController.java`.
+  - `src/main/java/com/aeropuertolosprimos/backend/repository/UserRepository.java`.
+  - `src/main/java/com/aeropuertolosprimos/backend/service/UserService.java`.
+  - `src/main/java/com/aeropuertolosprimos/backend/service/UserServiceImpl.java`.
 
-Registrado por: nota del desarrollador solicitada por el equipo.
+## Impacto
+- El proyecto actualmente conserva el modelo `User` (clase), pero **sin endpoints** ni clase de arranque Spring Boot.
+- Las migraciones referencian tablas existentes (`users`, `status_catalog`, `aerolinea`), por lo que se asume que provienen de migraciones previas (`V1...`) o de una base ya inicializada.
+
+## Proximos pasos sugeridos
+- Reincorporar la clase `@SpringBootApplication` (main) para poder levantar el backend.
+- Implementar endpoints de creacion/consulta (p. ej. `POST /pasajeros`, `POST /empleados`) y, si aplica, un registro combinado (`User` + `Pasajero`) en una transaccion.
