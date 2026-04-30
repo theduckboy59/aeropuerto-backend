@@ -47,3 +47,31 @@ Existe `compose.yaml` con un servicio `postgres`, pero actualmente sus valores (
 - Implementar endpoints de creacion/consulta (p. ej. `POST /pasajeros`, `POST /empleados`) y, si aplica, un registro combinado (`User` + `Pasajero`) en una transaccion.
 - Definir una estrategia de autenticacion (por ejemplo: login en `"/auth/**"` y/o desactivar seguridad en `dev` mientras se construye el API).
 - Alinear `compose.yaml` con `application-dev.yml` (nombre DB/usuario/puerto) para facilitar el levantado local.
+
+## Log verificado (estado de ejecucion)
+Segun el log de arranque (ultima verificacion):
+- App levanto ✔
+- Flyway ejecutado ✔
+- Conexion a PostgreSQL ✔
+- Tomcat en `8080` ✔
+- Sin errores de JWT ✔
+
+Esto significa que la configuracion quedo bien.
+
+### Observaciones esperadas
+- `Found 0 JPA repository interfaces` ✔ Correcto: aun no hay repositorios JPA creados.
+- `Using generated security password` ⚠ Indica que Spring Security esta en modo por defecto y todavia no hay autenticacion real.
+
+### Estado real del proyecto (segun log + codigo)
+Ya tienes:
+- Infraestructura JWT ✔
+- Seguridad base ✔
+- DB + Flyway ✔
+
+Aun no tienes:
+- Login real ❌
+- Usuarios desde BD ❌
+- Roles ❌
+
+### Conclusion (ingenieria)
+El backend ya esta en una fase base correcta: JWT esta integrado (aunque aun no se usa en login) y no hay errores estructurales.
