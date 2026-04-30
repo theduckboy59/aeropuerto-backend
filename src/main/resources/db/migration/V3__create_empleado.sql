@@ -1,3 +1,11 @@
+CREATE TABLE aerolinea (
+                           id SERIAL PRIMARY KEY,
+                           nombre VARCHAR(150) NOT NULL UNIQUE,
+                           estado VARCHAR(50)
+);
+
+INSERT INTO aerolinea (nombre, estado) VALUES ('AEROLINEA DEMO', 'ACTIVA');
+
 CREATE TABLE tipo_empleado (
                                id SERIAL PRIMARY KEY,
                                nombre VARCHAR(100) NOT NULL UNIQUE
