@@ -77,6 +77,18 @@ public class EmpleadoServiceImpl implements EmpleadoService {
 
         Empleado empleado = obtenerPorId(id);
 
+        User user = userRepository.findById(empleado.getUserId())
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        user.setUsername(request.getUsername());
+        user.setEmail(request.getEmail());
+
+        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+            user.setPassword(encoder.encode(request.getPassword()));
+        }
+
+        userRepository.save(user);
+
         empleado.setTipoEmpleadoId(request.getTipoEmpleadoId());
         empleado.setAerolineaId(request.getAerolineaId());
         empleado.setCodigoEmpleado(request.getCodigoEmpleado());

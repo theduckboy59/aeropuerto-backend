@@ -11,4 +11,4 @@ spring:
 
 jwt:
   secret: ${JWT_SECRET}        # Clave secreta para firmar JWT, obtenida de variable de entorno
-  expiration: 3600000          # Tiempo de expiración del token en milisegundos (1 hora)
+  expiration: 86400000          # Tiempo de expiración del token en milisegundos (1 hora)
