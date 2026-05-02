@@ -16,7 +16,7 @@ spring:
   flyway:
     enabled: true                                                 # Activa migraciones con Flyway
     locations: classpath:db/migration                             # Ruta de scripts SQL
-    baseline-on-migrate: true                                     # Permite iniciar sobre BD existente
+    baseline-on-migrate: false                                     # Permite iniciar sobre BD existente
 
 server:
   port: 8080                                                      # Puerto del servidor                                    # Puerto donde corre la app
