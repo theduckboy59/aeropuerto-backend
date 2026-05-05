@@ -15,9 +15,6 @@ import java.util.List;
 public class CatalogoController {
 
     private final StatusCatalogRepository statusCatalogRepository;
-    private final TipoDocumentoRepository tipoDocumentoRepository;
-    private final NacionalidadRepository nacionalidadRepository;
-    private final CodigoAreaRepository codigoAreaRepository;
 
     private final AerolineaRepository aerolineaRepository;
     private final TipoEmpleadoRepository tipoEmpleadoRepository;
@@ -30,21 +27,6 @@ public class CatalogoController {
     @GetMapping("/status")
     public List<StatusCatalog> listarStatus() {
         return statusCatalogRepository.findAll();
-    }
-
-    @GetMapping("/tipo-documento")
-    public List<TipoDocumento> listarTipoDocumento() {
-        return tipoDocumentoRepository.findAll();
-    }
-
-    @GetMapping("/nacionalidad")
-    public List<Nacionalidad> listarNacionalidad() {
-        return nacionalidadRepository.findAll();
-    }
-
-    @GetMapping("/codigo-area")
-    public List<CodigoArea> listarCodigoArea() {
-        return codigoAreaRepository.findAll();
     }
 
     @GetMapping("/aerolinea")
@@ -82,4 +64,3 @@ public class CatalogoController {
         return licenciaRepository.findAll();
     }
 }
-

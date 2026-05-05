@@ -26,11 +26,65 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void register(RegisterRequest request) {
 
+        // 1. Campos obligatorios (fail-safe)
+        if (isBlank(request.getUsername()) ||
+                isBlank(request.getEmail()) ||
+                isBlank(request.getPassword()) ||
+                isBlank(request.getDpi()) ||
+                isBlank(request.getNombreCompleto()) ||
+                isBlank(request.getTelefono()) ||
+                isBlank(request.getDireccion()) ||
+                isBlank(request.getNacionalidad()) ||
+                isBlank(request.getCodigoArea()) ||
+                request.getFechaNacimiento() == null) {
+
+            throw new RuntimeException("Debe ingresar los campos obligatorios");
+        }
+
+        // 2. DPI validación
+        String dpi = request.getDpi();
+
+        if (!dpi.matches("\\d+")) {
+            throw new RuntimeException("El DPI debe contener solo números");
+        }
+
+        if (pasajeroRepository.existsByDpi(dpi)) {
+            throw new RuntimeException("El DPI ya cuenta con usuario");
+        }
+
+        // 3. Correo y username duplicados
         userRepository.findByEmail(request.getEmail())
                 .ifPresent(u -> {
-                    throw new RuntimeException("Email ya registrado");
+                    throw new RuntimeException("El correo ya está registrado");
                 });
 
+        userRepository.findByUsername(request.getUsername())
+                .ifPresent(u -> {
+                    throw new RuntimeException("El nombre de usuario ya está registrado");
+                });
+
+        // 4. Teléfono principal
+        if (!request.getTelefono().matches("\\d+")) {
+            throw new RuntimeException("El número de teléfono debe contener solo dígitos");
+        }
+
+        if (request.getTelefono().length() != 8) {
+            throw new RuntimeException("El número de teléfono debe tener 8 dígitos");
+        }
+
+        // 5. Teléfono de emergencia (opcional, pero si viene debe cumplir 8 dígitos)
+        if (request.getTelefonoEmergencia() != null && !request.getTelefonoEmergencia().isBlank()) {
+
+            if (!request.getTelefonoEmergencia().matches("\\d+")) {
+                throw new RuntimeException("El teléfono de emergencia debe contener solo dígitos");
+            }
+
+            if (request.getTelefonoEmergencia().length() != 8) {
+                throw new RuntimeException("El teléfono de emergencia debe tener 8 dígitos");
+            }
+        }
+
+        // 6. Guardar usuario
         User user = new User();
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
@@ -38,18 +92,22 @@ public class AuthServiceImpl implements AuthService {
 
         user = userRepository.save(user);
 
+        // 7. Guardar pasajero
         Pasajero pasajero = new Pasajero();
         pasajero.setUserId(user.getId());
-        pasajero.setTipoDocumentoId(request.getTipoDocumentoId());
-        pasajero.setNumeroDocumento(request.getNumeroDocumento());
+        pasajero.setDpi(dpi);
         pasajero.setNombreCompleto(request.getNombreCompleto());
         pasajero.setFechaNacimiento(request.getFechaNacimiento());
-        pasajero.setNacionalidadId(request.getNacionalidadId());
-        pasajero.setCodigoAreaId(request.getCodigoAreaId());
+        pasajero.setNacionalidad(request.getNacionalidad());
+        pasajero.setCodigoArea(request.getCodigoArea());
         pasajero.setTelefono(request.getTelefono());
         pasajero.setTelefonoEmergencia(request.getTelefonoEmergencia());
         pasajero.setDireccion(request.getDireccion());
 
         pasajeroRepository.save(pasajero);
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 }

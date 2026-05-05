@@ -18,10 +18,9 @@ public class PasajeroServiceImpl implements PasajeroService {
     @Override
     public Pasajero crear(Pasajero pasajero) {
 
-        repository.findByNumeroDocumento(pasajero.getNumeroDocumento())
-                .ifPresent(p -> {
-                    throw new RuntimeException("Documento ya existe");
-                });
+        if (repository.existsByDpi(pasajero.getDpi())) {
+            throw new RuntimeException("Ya existe un pasajero con el mismo DPI");
+        }
 
         return repository.save(pasajero);
     }

@@ -5,12 +5,19 @@ import com.aeropuertolosprimos.backend.dto.LoginRequest;
 import com.aeropuertolosprimos.backend.dto.LoginResponse;
 import com.aeropuertolosprimos.backend.dto.RegisterRequest;
 import com.aeropuertolosprimos.backend.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 @RequiredArgsConstructor
 @RestController
@@ -22,13 +29,18 @@ public class AuthController {
     private final JwtService jwtService;
 
     @PostMapping("/register")
-    public String register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<Map<String, Object>> register(@Valid @RequestBody RegisterRequest request) {
         service.register(request);
-        return "Usuario creado correctamente";
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", HttpStatus.CREATED.value());
+        response.put("message", "Usuario creado correctamente");
+        response.put("timestamp", LocalDateTime.now());
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PostMapping("/login")
-    public LoginResponse login(@RequestBody LoginRequest request) {
+    public ResponseEntity<Map<String, Object>> login(@RequestBody LoginRequest request) {
 
         Authentication auth = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -41,6 +53,12 @@ public class AuthController {
 
         String token = jwtService.generateToken(user.getUsername());
 
-        return new LoginResponse(token);
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", HttpStatus.OK.value());
+        response.put("message", "Login exitoso");
+        response.put("token", token);
+        response.put("timestamp", LocalDateTime.now());
+
+        return ResponseEntity.ok(response);
     }
 }

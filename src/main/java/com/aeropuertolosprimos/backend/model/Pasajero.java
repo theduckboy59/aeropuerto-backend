@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "pasajero")
 public class Pasajero {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
@@ -17,29 +18,28 @@ public class Pasajero {
     @Column(name = "user_id")
     private Integer userId;
 
-    @Column(name = "tipo_documento_id")
-    private Integer tipoDocumentoId;
+    @Column(name = "dpi", nullable = false, unique = true)
+    private String dpi;
 
-    @Column(name = "numero_documento")
-    private String numeroDocumento;
-
-    @Column(name = "nombre_completo")
+    @Column(name = "nombre_completo", nullable = false)
     private String nombreCompleto;
 
-    @Column(name = "fecha_nacimiento")
+    @Column(name = "fecha_nacimiento", nullable = false)
     private LocalDate fechaNacimiento;
 
-    @Column(name = "nacionalidad_id")
-    private Integer nacionalidadId;
+    @Column(name = "nacionalidad", nullable = false)
+    private String nacionalidad;
 
-    @Column(name = "codigo_area_id")
-    private Integer codigoAreaId;
+    @Column(name = "codigo_area", nullable = false)
+    private String codigoArea;
 
+    @Column(name = "telefono", nullable = false)
     private String telefono;
 
     @Column(name = "telefono_emergencia")
     private String telefonoEmergencia;
 
+    @Column(name = "direccion", nullable = false)
     private String direccion;
 
     @Column(name = "estado_id")

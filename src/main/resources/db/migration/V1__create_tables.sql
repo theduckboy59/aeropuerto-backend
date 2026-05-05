@@ -6,7 +6,7 @@ CREATE TABLE status_catalog (
 CREATE TABLE users (
                        id SERIAL PRIMARY KEY,
                        username VARCHAR(50) NOT NULL UNIQUE,
-                       email VARCHAR(100) NOT NULL UNIQUE,
+                       email VARCHAR(150) NOT NULL UNIQUE,
                        password VARCHAR(255) NOT NULL,
                        estado_id INTEGER NOT NULL DEFAULT 1,
                        created_at TIMESTAMP NOT NULL,
