@@ -30,7 +30,7 @@ public class AuthServiceImpl implements AuthService {
         if (isBlank(request.getUsername()) ||
                 isBlank(request.getEmail()) ||
                 isBlank(request.getPassword()) ||
-                isBlank(request.getDpi()) ||
+                isBlank(request.getPasaporte()) ||
                 isBlank(request.getNombreCompleto()) ||
                 isBlank(request.getTelefono()) ||
                 isBlank(request.getDireccion()) ||
@@ -41,15 +41,15 @@ public class AuthServiceImpl implements AuthService {
             throw new RuntimeException("Debe ingresar los campos obligatorios");
         }
 
-        // 2. DPI validación
-        String dpi = request.getDpi();
+        // 2. Pasaporte validación
+        String pasaporte = request.getPasaporte();
 
-        if (!dpi.matches("\\d+")) {
-            throw new RuntimeException("El DPI debe contener solo números");
+        if (!pasaporte.matches("\\d+")) {
+            throw new RuntimeException("El pasaporte debe contener solo números");
         }
 
-        if (pasajeroRepository.existsByDpi(dpi)) {
-            throw new RuntimeException("El DPI ya cuenta con usuario");
+        if (pasajeroRepository.existsByPasaporte(pasaporte)) {
+            throw new RuntimeException("El pasaporte ya cuenta con usuario");
         }
 
         // 3. Correo y username duplicados
@@ -95,7 +95,7 @@ public class AuthServiceImpl implements AuthService {
         // 7. Guardar pasajero
         Pasajero pasajero = new Pasajero();
         pasajero.setUserId(user.getId());
-        pasajero.setDpi(dpi);
+        pasajero.setPasaporte(pasaporte);
         pasajero.setNombreCompleto(request.getNombreCompleto());
         pasajero.setFechaNacimiento(request.getFechaNacimiento());
         pasajero.setNacionalidad(request.getNacionalidad());

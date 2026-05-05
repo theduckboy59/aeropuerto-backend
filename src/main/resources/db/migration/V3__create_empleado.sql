@@ -1,10 +1,12 @@
 CREATE TABLE aerolinea (
                            id SERIAL PRIMARY KEY,
                            nombre VARCHAR(150) NOT NULL UNIQUE,
-                           estado VARCHAR(50)
+                           estado_id INTEGER,
+                           CONSTRAINT fk_aerolinea_estado FOREIGN KEY (estado_id) REFERENCES status_catalog(id)
 );
 
-INSERT INTO aerolinea (nombre, estado) VALUES ('AEROLINEA DEMO', 'ACTIVA');
+INSERT INTO aerolinea (nombre, estado_id)
+VALUES ('AEROLINEA DEMO', 1);
 
 CREATE TABLE tipo_empleado (
                                id SERIAL PRIMARY KEY,
@@ -52,8 +54,8 @@ CREATE TABLE empleado (
                           licencia_id INTEGER,
                           fecha_vencimiento_licencia DATE,
                           estado_id INTEGER NOT NULL DEFAULT 1,
-                          created_at TIMESTAMP NOT NULL,
-                          updated_at TIMESTAMP NOT NULL,
+                          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
                           CONSTRAINT fk_empleado_user FOREIGN KEY (user_id) REFERENCES users(id),
                           CONSTRAINT fk_empleado_tipo FOREIGN KEY (tipo_empleado_id) REFERENCES tipo_empleado(id),

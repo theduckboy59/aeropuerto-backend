@@ -5,5 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface PasajeroRepository extends JpaRepository<Pasajero, Integer> {
 
-    boolean existsByDpi(String dpi);
+    boolean existsByPasaporte(String pasaporte);
 }

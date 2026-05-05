@@ -23,8 +23,8 @@ public class RegisterRequest {
     private String password;
 
     @NotBlank(message = "Debe ingresar los campos obligatorios")
-    @Pattern(regexp = "^[0-9]+$", message = "El DPI solo debe contener números")
-    private String dpi;
+    @Pattern(regexp = "^\\d+$", message = "El pasaporte solo debe contener números")
+    private String pasaporte;
 
     @NotBlank(message = "Debe ingresar los campos obligatorios")
     private String nombreCompleto;

@@ -18,8 +18,8 @@ public class Pasajero {
     @Column(name = "user_id")
     private Integer userId;
 
-    @Column(name = "dpi", nullable = false, unique = true)
-    private String dpi;
+    @Column(name = "pasaporte", nullable = false, unique = true)
+    private String pasaporte;
 
     @Column(name = "nombre_completo", nullable = false)
     private String nombreCompleto;
