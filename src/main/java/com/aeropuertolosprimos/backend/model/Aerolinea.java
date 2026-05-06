@@ -14,6 +14,7 @@ public class Aerolinea {
 
     private String nombre;
 
-    private String estado;
+    @ManyToOne
+    @JoinColumn(name = "estado_id")
+    private StatusCatalog estado;
 }
-

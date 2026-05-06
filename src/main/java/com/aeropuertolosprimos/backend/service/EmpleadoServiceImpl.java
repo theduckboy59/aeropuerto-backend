@@ -1,6 +1,7 @@
 package com.aeropuertolosprimos.backend.service;
 
 import com.aeropuertolosprimos.backend.dto.EmpleadoRequest;
+import com.aeropuertolosprimos.backend.dto.EmpleadoResponse;
 import com.aeropuertolosprimos.backend.model.Empleado;
 import com.aeropuertolosprimos.backend.model.User;
 import com.aeropuertolosprimos.backend.repository.EmpleadoRepository;
@@ -8,6 +9,9 @@ import com.aeropuertolosprimos.backend.repository.UserRepository;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import org.springframework.data.jpa.domain.Specification;
+
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -24,16 +28,18 @@ public class EmpleadoServiceImpl implements EmpleadoService {
     }
 
     @Override
-    public Empleado crear(EmpleadoRequest request) {
+    public EmpleadoResponse crear(EmpleadoRequest request) {
+
+        validarRequest(request, true);
 
         userRepository.findByEmail(request.getEmail())
                 .ifPresent(u -> {
                     throw new RuntimeException("Email ya registrado");
                 });
 
-        empleadoRepository.findByCodigoEmpleado(request.getCodigoEmpleado())
-                .ifPresent(e -> {
-                    throw new RuntimeException("Código empleado ya existe");
+        userRepository.findByUsername(request.getUsername())
+                .ifPresent(u -> {
+                    throw new RuntimeException("Username ya registrado");
                 });
 
         User user = new User();
@@ -44,10 +50,15 @@ public class EmpleadoServiceImpl implements EmpleadoService {
         user = userRepository.save(user);
 
         Empleado empleado = new Empleado();
+
         empleado.setUserId(user.getId());
         empleado.setTipoEmpleadoId(request.getTipoEmpleadoId());
         empleado.setAerolineaId(request.getAerolineaId());
-        empleado.setCodigoEmpleado(request.getCodigoEmpleado());
+
+        empleado.setCodigoEmpleado(
+                generarCodigoEmpleado(request.getTipoEmpleadoId())
+        );
+
         empleado.setNombreCompleto(request.getNombreCompleto());
         empleado.setFechaIngreso(request.getFechaIngreso());
         empleado.setFechaSalida(request.getFechaSalida());
@@ -58,24 +69,87 @@ public class EmpleadoServiceImpl implements EmpleadoService {
         empleado.setLicenciaId(request.getLicenciaId());
         empleado.setFechaVencimientoLicencia(request.getFechaVencimientoLicencia());
 
-        return empleadoRepository.save(empleado);
+        empleado = empleadoRepository.save(empleado);
+
+        return convertirResponse(empleado, user);
     }
 
     @Override
-    public List<Empleado> listar() {
-        return empleadoRepository.findAll();
+    public List<EmpleadoResponse> listar(
+            Integer tipoEmpleadoId,
+            Integer aerolineaId,
+            LocalDate fechaIngreso,
+            LocalDate fechaSalida,
+            Integer turnoId,
+            Integer rolId,
+            Integer nivelAccesoId,
+            Integer areaId
+    ) {
+
+        Specification<Empleado> spec = (root, query, cb) ->
+                cb.equal(root.get("estadoId"), 1);
+
+        if (tipoEmpleadoId != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.equal(root.get("tipoEmpleadoId"), tipoEmpleadoId));
+        }
+
+        if (aerolineaId != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.equal(root.get("aerolineaId"), aerolineaId));
+        }
+
+        if (fechaIngreso != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.equal(root.get("fechaIngreso"), fechaIngreso));
+        }
+
+        if (fechaSalida != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.equal(root.get("fechaSalida"), fechaSalida));
+        }
+
+        if (turnoId != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.equal(root.get("turnoId"), turnoId));
+        }
+
+        if (rolId != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.equal(root.get("rolId"), rolId));
+        }
+
+        if (nivelAccesoId != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.equal(root.get("nivelAccesoId"), nivelAccesoId));
+        }
+
+        if (areaId != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.equal(root.get("areaId"), areaId));
+        }
+
+        return empleadoRepository.findAll(spec)
+                .stream()
+                .map(this::convertirResponse)
+                .toList();
     }
 
+
     @Override
-    public Empleado obtenerPorId(Integer id) {
-        return empleadoRepository.findById(id)
+    public EmpleadoResponse obtenerPorId(Integer id) {
+
+        Empleado empleado = empleadoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Empleado no encontrado"));
+
+        return convertirResponse(empleado);
     }
 
     @Override
-    public Empleado actualizar(Integer id, EmpleadoRequest request) {
-
-        Empleado empleado = obtenerPorId(id);
+    public EmpleadoResponse actualizar(Integer id, EmpleadoRequest request) {
+        validarRequest(request, false);
+        Empleado empleado = empleadoRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Empleado no encontrado"));
 
         User user = userRepository.findById(empleado.getUserId())
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
@@ -83,7 +157,9 @@ public class EmpleadoServiceImpl implements EmpleadoService {
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
 
-        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+        if (request.getPassword() != null &&
+                !request.getPassword().isBlank()) {
+
             user.setPassword(encoder.encode(request.getPassword()));
         }
 
@@ -91,7 +167,6 @@ public class EmpleadoServiceImpl implements EmpleadoService {
 
         empleado.setTipoEmpleadoId(request.getTipoEmpleadoId());
         empleado.setAerolineaId(request.getAerolineaId());
-        empleado.setCodigoEmpleado(request.getCodigoEmpleado());
         empleado.setNombreCompleto(request.getNombreCompleto());
         empleado.setFechaIngreso(request.getFechaIngreso());
         empleado.setFechaSalida(request.getFechaSalida());
@@ -102,11 +177,126 @@ public class EmpleadoServiceImpl implements EmpleadoService {
         empleado.setLicenciaId(request.getLicenciaId());
         empleado.setFechaVencimientoLicencia(request.getFechaVencimientoLicencia());
 
-        return empleadoRepository.save(empleado);
+        empleado = empleadoRepository.save(empleado);
+
+        return convertirResponse(empleado, user);
     }
 
     @Override
     public void eliminar(Integer id) {
-        empleadoRepository.deleteById(id);
+
+        Empleado empleado = empleadoRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Empleado no encontrado"));
+
+        empleado.setEstadoId(2);
+
+        empleadoRepository.save(empleado);
+    }
+
+    private void validarRequest(EmpleadoRequest request, boolean requirePassword) {
+
+        if (request.getUsername() == null || request.getUsername().isBlank()) {
+            throw new RuntimeException("Username obligatorio");
+        }
+
+        if (request.getEmail() == null || request.getEmail().isBlank()) {
+            throw new RuntimeException("Email obligatorio");
+        }
+
+        if (!request.getEmail().contains("@")) {
+            throw new RuntimeException("Email inválido");
+        }
+
+        if (requirePassword && (request.getPassword() == null ||
+                request.getPassword().isBlank())) {
+
+            throw new RuntimeException("Password obligatorio");
+        }
+
+        if (request.getPassword() != null &&
+                !request.getPassword().isBlank() &&
+                request.getPassword().length() < 8) {
+
+            throw new RuntimeException("Password mínimo 8 caracteres");
+        }
+
+        if (request.getTipoEmpleadoId() == null) {
+            throw new RuntimeException("Tipo empleado obligatorio");
+        }
+
+        if (request.getNombreCompleto() == null ||
+                request.getNombreCompleto().isBlank()) {
+
+            throw new RuntimeException("Nombre obligatorio");
+        }
+
+        if (request.getFechaIngreso() == null) {
+            throw new RuntimeException("Fecha ingreso obligatoria");
+        }
+
+        if (request.getFechaVencimientoLicencia() != null &&
+                request.getFechaVencimientoLicencia().isBefore(LocalDate.now())) {
+
+            throw new RuntimeException("Licencia vencida");
+        }
+    }
+
+    private String generarCodigoEmpleado(Integer tipoEmpleadoId) {
+
+        String prefijo = switch (tipoEmpleadoId) {
+            case 1 -> "PIL";
+            case 2 -> "COP";
+            case 3 -> "CAB";
+            case 4 -> "ING";
+            default -> "EMP";
+        };
+
+        long total = empleadoRepository.countByTipoEmpleadoId(tipoEmpleadoId);
+
+        return prefijo + "-" + String.format("%04d", total + 1);
+    }
+
+    private EmpleadoResponse convertirResponse(Empleado empleado) {
+
+        User user = userRepository.findById(empleado.getUserId())
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        return convertirResponse(empleado, user);
+    }
+
+    private EmpleadoResponse convertirResponse(Empleado empleado, User user) {
+
+        EmpleadoResponse response = new EmpleadoResponse();
+
+        response.setId(empleado.getId());
+
+        response.setUserId(user.getId());
+
+        response.setUsername(user.getUsername());
+        response.setEmail(user.getEmail());
+
+        response.setTipoEmpleadoId(empleado.getTipoEmpleadoId());
+        response.setAerolineaId(empleado.getAerolineaId());
+
+        response.setCodigoEmpleado(empleado.getCodigoEmpleado());
+        response.setNombreCompleto(empleado.getNombreCompleto());
+
+        response.setFechaIngreso(empleado.getFechaIngreso());
+        response.setFechaSalida(empleado.getFechaSalida());
+
+        response.setTurnoId(empleado.getTurnoId());
+        response.setNivelAccesoId(empleado.getNivelAccesoId());
+        response.setRolId(empleado.getRolId());
+        response.setAreaId(empleado.getAreaId());
+
+        response.setLicenciaId(empleado.getLicenciaId());
+
+        response.setFechaVencimientoLicencia(
+                empleado.getFechaVencimientoLicencia()
+        );
+
+        response.setEstadoId(empleado.getEstadoId());
+
+        return response;
     }
 }

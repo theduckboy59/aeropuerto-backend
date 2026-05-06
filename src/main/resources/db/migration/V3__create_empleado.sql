@@ -57,6 +57,8 @@ CREATE TABLE empleado (
                           created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                           updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
+                          CHECK (fecha_salida IS NULL OR fecha_salida >= fecha_ingreso),
+
                           CONSTRAINT fk_empleado_user FOREIGN KEY (user_id) REFERENCES users(id),
                           CONSTRAINT fk_empleado_tipo FOREIGN KEY (tipo_empleado_id) REFERENCES tipo_empleado(id),
                           CONSTRAINT fk_empleado_aerolinea FOREIGN KEY (aerolinea_id) REFERENCES aerolinea(id),
@@ -71,6 +73,7 @@ CREATE TABLE empleado (
 INSERT INTO tipo_empleado (nombre) VALUES ('PILOTO');
 INSERT INTO tipo_empleado (nombre) VALUES ('COPILOTO');
 INSERT INTO tipo_empleado (nombre) VALUES ('CABINA');
+INSERT INTO tipo_empleado (nombre) VALUES ('INGENIERO_VUELO');
 
 INSERT INTO turno (nombre) VALUES ('MATUTINO');
 INSERT INTO turno (nombre) VALUES ('VESPERTINO');
