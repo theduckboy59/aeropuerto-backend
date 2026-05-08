@@ -7,27 +7,22 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "aerolinea")
-public class Aerolinea {
+@Table(name = "tripulacion")
+public class Tripulacion {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    private String nombre;
+    private String codigo;
 
-    @Column(name = "codigo_iata")
-    private String codigoIata;
+    @Column(name = "aerolinea_id")
+    private Integer aerolineaId;
 
-    @Column(name = "codigo_icao")
-    private String codigoIcao;
+    @Column(name = "estado_tripulacion_id")
+    private Integer estadoTripulacionId;
 
-    private String pais;
-
-    @Column(name = "estado_id")
-    private Integer estadoId;
-
-    @Column(name = "created_at", updatable = false)
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
@@ -35,16 +30,14 @@ public class Aerolinea {
 
     @PrePersist
     public void prePersist() {
+
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
-
-        if (this.estadoId == null) {
-            this.estadoId = 1;
-        }
     }
 
     @PreUpdate
     public void preUpdate() {
+
         this.updatedAt = LocalDateTime.now();
     }
 }

@@ -1,12 +1,27 @@
 CREATE TABLE aerolinea (
                            id SERIAL PRIMARY KEY,
                            nombre VARCHAR(150) NOT NULL UNIQUE,
-                           estado_id INTEGER,
-                           CONSTRAINT fk_aerolinea_estado FOREIGN KEY (estado_id) REFERENCES status_catalog(id)
+                           codigo_iata VARCHAR(3) UNIQUE,
+                           codigo_icao VARCHAR(4) UNIQUE,
+                           pais VARCHAR(100),
+                           estado_id INT,
+                           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                           CONSTRAINT fk_aerolinea_estado
+                               FOREIGN KEY (estado_id)
+                                   REFERENCES status_catalog(id)
 );
 
-INSERT INTO aerolinea (nombre, estado_id)
-VALUES ('AEROLINEA DEMO', 1);
+INSERT INTO aerolinea (
+    nombre,
+    codigo_iata,
+    codigo_icao,
+    pais,
+    estado_id
+)
+VALUES
+    ('Avianca', 'AV', 'AVA', 'Colombia', 1),
+    ('Copa Airlines', 'CM', 'CMP', 'Panamá', 1);
 
 CREATE TABLE tipo_empleado (
                                id SERIAL PRIMARY KEY,
