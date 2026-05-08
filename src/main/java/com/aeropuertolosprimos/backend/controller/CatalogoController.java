@@ -23,6 +23,7 @@ public class CatalogoController {
     private final RolRepository rolRepository;
     private final AreaRepository areaRepository;
     private final LicenciaRepository licenciaRepository;
+    private final AeropuertoRepository aeropuertoRepository;
 
     @GetMapping("/status")
     public List<StatusCatalog> listarStatus() {
@@ -62,5 +63,11 @@ public class CatalogoController {
     @GetMapping("/licencia")
     public List<Licencia> listarLicencia() {
         return licenciaRepository.findAll();
+    }
+
+    @GetMapping("/aeropuerto")
+    public List<Aeropuerto> listarAeropuertos() {
+
+        return aeropuertoRepository.findByEstadoId(1);
     }
 }

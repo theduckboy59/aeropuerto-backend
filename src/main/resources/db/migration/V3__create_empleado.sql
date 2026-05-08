@@ -1,12 +1,13 @@
 CREATE TABLE aerolinea (
                            id SERIAL PRIMARY KEY,
                            nombre VARCHAR(150) NOT NULL UNIQUE,
-                           codigo_iata VARCHAR(3) UNIQUE,
-                           codigo_icao VARCHAR(4) UNIQUE,
+                           codigo_iata VARCHAR(10),
+                           codigo_icao VARCHAR(10),
                            pais VARCHAR(100),
                            estado_id INT,
                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
                            CONSTRAINT fk_aerolinea_estado
                                FOREIGN KEY (estado_id)
                                    REFERENCES status_catalog(id)
