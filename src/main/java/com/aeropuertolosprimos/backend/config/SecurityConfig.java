@@ -38,6 +38,7 @@ public class SecurityConfig {
                         .requestMatchers("/aerolineas/**").permitAll()
                         .requestMatchers("/aeropuertos/**").permitAll()
                         .requestMatchers("/destinos-autorizados/**").permitAll()
+                        .requestMatchers("/modelo-avion/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
