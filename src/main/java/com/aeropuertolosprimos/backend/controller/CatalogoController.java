@@ -24,6 +24,8 @@ public class CatalogoController {
     private final AreaRepository areaRepository;
     private final LicenciaRepository licenciaRepository;
     private final AeropuertoRepository aeropuertoRepository;
+    private final TripulacionRepository tripulacionRepository;
+    private final DestinoAutorizadoRepository destinoAutorizadoRepository;
 
     @GetMapping("/status")
     public List<StatusCatalog> listarStatus() {
@@ -69,5 +71,18 @@ public class CatalogoController {
     public List<Aeropuerto> listarAeropuertos() {
 
         return aeropuertoRepository.findByEstadoId(1);
+    }
+    @GetMapping("/tripulacion")
+    public List<Tripulacion> listarTripulaciones() {
+
+        return tripulacionRepository
+                .findByEstadoTripulacionId(1);
+    }
+
+    @GetMapping("/destinos-autorizados")
+    public List<DestinoAutorizado> listarDestinosAutorizados() {
+
+        return destinoAutorizadoRepository
+                .findByEstadoId(1);
     }
 }

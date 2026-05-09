@@ -27,8 +27,27 @@ public class DestinoAutorizadoController {
     }
 
     @GetMapping
-    public List<DestinoAutorizadoResponse> listar() {
-        return service.listar();
+    public List<DestinoAutorizadoResponse> listar(
+
+            @RequestParam(required = false)
+            Integer aerolineaId,
+
+            @RequestParam(required = false)
+            Integer aeropuertoId,
+
+            @RequestParam(required = false)
+            String pais,
+
+            @RequestParam(required = false)
+            Integer estadoId
+    ) {
+
+        return service.listar(
+                aerolineaId,
+                aeropuertoId,
+                pais,
+                estadoId
+        );
     }
 
     @GetMapping("/{id}")

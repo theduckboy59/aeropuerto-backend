@@ -62,12 +62,64 @@ public class DestinoAutorizadoServiceImpl
     }
 
     @Override
-    public List<DestinoAutorizadoResponse> listar() {
+    public List<DestinoAutorizadoResponse> listar(
+            Integer aerolineaId,
+            Integer aeropuertoId,
+            String pais,
+            Integer estadoId
+    ) {
 
-        return repository.findAll()
-                .stream()
-                .map(this::convertirResponse)
-                .toList();
+        Integer estado =
+                estadoId != null ? estadoId : 1;
+
+        List<DestinoAutorizado> destinos;
+
+        if (aerolineaId != null) {
+
+            destinos =
+                    repository
+                            .findByAerolineaIdAndEstadoId(
+                                    aerolineaId,
+                                    estado
+                            );
+
+        } else if (aeropuertoId != null) {
+
+            destinos =
+                    repository
+                            .findByAeropuertoIdAndEstadoId(
+                                    aeropuertoId,
+                                    estado
+                            );
+
+        } else {
+
+            destinos =
+                    repository.findByEstadoId(
+                            estado
+                    );
+        }
+
+        List<DestinoAutorizadoResponse> response =
+                destinos.stream()
+                        .map(this::convertirResponse)
+                        .toList();
+
+        if (pais != null &&
+                !pais.isBlank()) {
+
+            response =
+                    response.stream()
+                            .filter(r ->
+                                    r.getPais()
+                                            .equalsIgnoreCase(
+                                                    pais
+                                            )
+                            )
+                            .toList();
+        }
+
+        return response;
     }
 
     @Override

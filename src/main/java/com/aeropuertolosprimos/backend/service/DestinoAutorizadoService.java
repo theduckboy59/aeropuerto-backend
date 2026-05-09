@@ -11,14 +11,23 @@ public interface DestinoAutorizadoService {
             DestinoAutorizadoRequest request
     );
 
-    List<DestinoAutorizadoResponse> listar();
+    List<DestinoAutorizadoResponse> listar(
+            Integer aerolineaId,
+            Integer aeropuertoId,
+            String pais,
+            Integer estadoId
+    );
 
-    DestinoAutorizadoResponse obtenerPorId(Integer id);
+    DestinoAutorizadoResponse obtenerPorId(
+            Integer id
+    );
 
     DestinoAutorizadoResponse actualizar(
             Integer id,
             DestinoAutorizadoRequest request
     );
 
-    void eliminar(Integer id);
+    void eliminar(
+            Integer id
+    );
 }
