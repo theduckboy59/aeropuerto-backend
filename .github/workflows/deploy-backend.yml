@@ -1,0 +1,43 @@
+name: Deploy Backend to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy backend in EC2
+        run: |
+          mkdir -p ~/.ssh
+
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+
+          ssh -i ~/.ssh/ec2_key "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" << 'EOF'
+            set -e
+
+            cd /home/ubuntu/backend/aeropuerto-backend
+
+            echo "Actualizando repositorio..."
+            git pull origin main
+
+            echo "Compilando backend..."
+            ./mvnw clean package -DskipTests
+
+            echo "Reiniciando servicio..."
+            sudo -n /usr/bin/systemctl restart aeropuerto-backend
+
+            echo "Esperando arranque..."
+            sleep 20
+
+            echo "Validando endpoint..."
+            curl -f http://localhost:8080/catalogos/status
+
+            echo "Deploy completado correctamente."
+          EOF

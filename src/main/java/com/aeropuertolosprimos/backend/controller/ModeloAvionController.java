@@ -37,6 +37,14 @@ public class ModeloAvionController {
         );
     }
 
+    @PostMapping("/preview")
+    public ModeloAvionPreviewResponse preview(
+            @RequestBody @Valid ModeloAvionRequest request
+    ) {
+
+        return service.preview(request);
+    }
+
     @GetMapping("/{id}")
     public ModeloAvionResponse findById(
             @PathVariable Integer id
@@ -69,13 +77,5 @@ public class ModeloAvionController {
     ) {
 
         service.changeStatus(id, estadoId);
-    }
-
-    @PostMapping("/preview")
-    public ModeloAvionPreviewResponse preview(
-            @RequestBody @Valid ModeloAvionRequest request
-    ) {
-
-        return service.preview(request);
     }
 }
