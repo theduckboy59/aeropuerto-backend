@@ -40,6 +40,7 @@ public class SecurityConfig {
                         .requestMatchers("/destinos-autorizados/**").permitAll()
                         .requestMatchers("/avion/**").permitAll()
                         .requestMatchers("/modelo-avion/**").permitAll()
+                        .requestMatchers("/config-clase-filas-avion/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

@@ -30,6 +30,8 @@ public class CatalogoController {
     private final EstadoAvionRepository estadoAvionRepository;
     private final AvionRepository avionRepository;
 
+    private final ClaseVueloRepository claseVueloRepository;
+
     @GetMapping("/status")
     public List<StatusCatalog> listarStatus() {
         return statusCatalogRepository.findAll();
@@ -97,5 +99,10 @@ public class CatalogoController {
     @GetMapping("/avion")
     public List<Avion> listarAviones() {
         return avionRepository.findByEstadoId(1);
+    }
+
+    @GetMapping("/clase-vuelo")
+    public List<ClaseVuelo> listarClasesVuelo() {
+        return claseVueloRepository.findAllByOrderByNombreAsc();
     }
 }
