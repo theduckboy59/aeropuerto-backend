@@ -1,0 +1,282 @@
+package com.aeropuertolosprimos.backend.service;
+
+import com.aeropuertolosprimos.backend.dto.AvionRequest;
+import com.aeropuertolosprimos.backend.dto.AvionResponse;
+import com.aeropuertolosprimos.backend.model.Aerolinea;
+import com.aeropuertolosprimos.backend.model.Avion;
+import com.aeropuertolosprimos.backend.model.EstadoAvion;
+import com.aeropuertolosprimos.backend.model.ModeloAvion;
+import com.aeropuertolosprimos.backend.repository.AerolineaRepository;
+import com.aeropuertolosprimos.backend.repository.AvionRepository;
+import com.aeropuertolosprimos.backend.repository.EstadoAvionRepository;
+import com.aeropuertolosprimos.backend.repository.ModeloAvionRepository;
+import com.aeropuertolosprimos.backend.specification.AvionSpecification;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
+import java.util.Objects;
+
+@Service
+@RequiredArgsConstructor
+public class AvionServiceImpl implements AvionService {
+
+    private final AvionRepository repository;
+    private final AerolineaRepository aerolineaRepository;
+    private final EstadoAvionRepository estadoAvionRepository;
+    private final ModeloAvionRepository modeloAvionRepository;
+
+    @Override
+    public Page<AvionResponse> findAll(
+            String q,
+            Integer aerolineaId,
+            Integer estadoAvionId,
+            Integer modeloAvionId,
+            Integer estadoId,
+            Integer anio,
+            Pageable pageable
+    ) {
+
+        return repository.findAll(
+                        AvionSpecification.filters(
+                                q,
+                                aerolineaId,
+                                estadoAvionId,
+                                modeloAvionId,
+                                estadoId,
+                                anio
+                        ),
+                        pageable
+                )
+                .map(this::mapResponse);
+    }
+
+    @Override
+    public AvionResponse findById(Integer id) {
+
+        Avion entity = repository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("Avión no encontrado")
+                );
+
+        return mapResponse(entity);
+    }
+
+    @Override
+    public AvionResponse create(AvionRequest request) {
+
+        Aerolinea aerolinea = findAerolinea(request.getAerolineaId());
+        ModeloAvion modeloAvion = findModeloAvion(request.getModeloAvionId());
+
+        findEstadoAvion(request.getEstadoAvionId());
+
+        validateAerolineaIsActive(aerolinea);
+        validateModelIsActive(modeloAvion);
+        validateConfiguredRows(request.getFilasConfiguradas(), modeloAvion);
+
+        Avion entity = new Avion();
+
+        entity.setAerolineaId(request.getAerolineaId());
+        entity.setEstadoAvionId(request.getEstadoAvionId());
+        entity.setModeloAvionId(request.getModeloAvionId());
+        entity.setCodigoAvion(request.getCodigoAvion());
+        entity.setNumeroSerie(request.getNumeroSerie());
+        entity.setAnio(request.getAnio());
+        entity.setFilasConfiguradas(request.getFilasConfiguradas());
+        entity.setCantidadVuelos(0);
+        entity.setEstadoId(request.getEstadoId());
+
+        repository.save(entity);
+
+        return mapResponse(entity);
+    }
+
+    @Override
+    public AvionResponse update(
+            Integer id,
+            AvionRequest request
+    ) {
+
+        Avion entity = repository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("Avión no encontrado")
+                );
+
+        Aerolinea aerolinea = findAerolinea(request.getAerolineaId());
+        ModeloAvion modeloAvion = findModeloAvion(request.getModeloAvionId());
+
+        findEstadoAvion(request.getEstadoAvionId());
+
+        validateAerolineaIsActive(aerolinea);
+        validateModelIsActive(modeloAvion);
+        validateConfiguredRows(request.getFilasConfiguradas(), modeloAvion);
+        validateStructuralChange(entity, request);
+
+        entity.setAerolineaId(request.getAerolineaId());
+        entity.setEstadoAvionId(request.getEstadoAvionId());
+        entity.setModeloAvionId(request.getModeloAvionId());
+        entity.setCodigoAvion(request.getCodigoAvion());
+        entity.setNumeroSerie(request.getNumeroSerie());
+        entity.setAnio(request.getAnio());
+        entity.setFilasConfiguradas(request.getFilasConfiguradas());
+
+        if (request.getEstadoId() != null) {
+            entity.setEstadoId(request.getEstadoId());
+        }
+
+        repository.save(entity);
+
+        return mapResponse(entity);
+    }
+
+    @Override
+    public void changeStatus(
+            Integer id,
+            Integer estadoId
+    ) {
+
+        Avion entity = repository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("Avión no encontrado")
+                );
+
+        entity.setEstadoId(estadoId);
+
+        repository.save(entity);
+    }
+
+    @Override
+    public void changeOperationalStatus(
+            Integer id,
+            Integer estadoAvionId
+    ) {
+
+        Avion entity = repository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("Avión no encontrado")
+                );
+
+        findEstadoAvion(estadoAvionId);
+
+        entity.setEstadoAvionId(estadoAvionId);
+
+        repository.save(entity);
+    }
+
+    private Aerolinea findAerolinea(Integer id) {
+
+        return aerolineaRepository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("Aerolínea no encontrada")
+                );
+    }
+
+    private EstadoAvion findEstadoAvion(Integer id) {
+
+        return estadoAvionRepository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("Estado de avión no encontrado")
+                );
+    }
+
+    private ModeloAvion findModeloAvion(Integer id) {
+
+        return modeloAvionRepository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("Modelo de avión no encontrado")
+                );
+    }
+
+    private void validateAerolineaIsActive(Aerolinea aerolinea) {
+
+        if (!Objects.equals(aerolinea.getEstadoId(), 1)) {
+            throw new RuntimeException(
+                    "No se puede usar una aerolínea inactiva"
+            );
+        }
+    }
+
+    private void validateModelIsActive(ModeloAvion modeloAvion) {
+
+        if (!Objects.equals(modeloAvion.getEstadoId(), 1)) {
+            throw new RuntimeException(
+                    "No se puede usar un modelo de avión inactivo"
+            );
+        }
+    }
+
+    private void validateConfiguredRows(
+            Integer filasConfiguradas,
+            ModeloAvion modeloAvion
+    ) {
+
+        if (filasConfiguradas < modeloAvion.getFilasMin()) {
+            throw new RuntimeException(
+                    "Las filas configuradas no pueden ser menores a " +
+                            modeloAvion.getFilasMin()
+            );
+        }
+
+        if (filasConfiguradas > modeloAvion.getFilasMax()) {
+            throw new RuntimeException(
+                    "Las filas configuradas no pueden ser mayores a " +
+                            modeloAvion.getFilasMax()
+            );
+        }
+    }
+
+    private void validateStructuralChange(
+            Avion entity,
+            AvionRequest request
+    ) {
+
+        boolean changedModel = !Objects.equals(
+                entity.getModeloAvionId(),
+                request.getModeloAvionId()
+        );
+
+        boolean changedRows = !Objects.equals(
+                entity.getFilasConfiguradas(),
+                request.getFilasConfiguradas()
+        );
+
+        if (entity.getCantidadVuelos() != null
+                && entity.getCantidadVuelos() > 0
+                && (changedModel || changedRows)) {
+
+            throw new RuntimeException(
+                    "No se puede modificar la estructura de un avión que ya tiene vuelos"
+            );
+        }
+    }
+
+    private AvionResponse mapResponse(Avion entity) {
+
+        Aerolinea aerolinea = findAerolinea(entity.getAerolineaId());
+        EstadoAvion estadoAvion = findEstadoAvion(entity.getEstadoAvionId());
+        ModeloAvion modeloAvion = findModeloAvion(entity.getModeloAvionId());
+
+        return AvionResponse.builder()
+                .id(entity.getId())
+
+                .aerolineaId(entity.getAerolineaId())
+                .aerolineaNombre(aerolinea.getNombre())
+
+                .estadoAvionId(entity.getEstadoAvionId())
+                .estadoAvionNombre(estadoAvion.getNombre())
+
+                .modeloAvionId(entity.getModeloAvionId())
+                .modeloFabricante(modeloAvion.getFabricante())
+                .modeloCodigo(modeloAvion.getCodigoModelo())
+                .modeloNombre(modeloAvion.getNombre())
+
+                .codigoAvion(entity.getCodigoAvion())
+                .numeroSerie(entity.getNumeroSerie())
+                .anio(entity.getAnio())
+                .filasConfiguradas(entity.getFilasConfiguradas())
+                .cantidadVuelos(entity.getCantidadVuelos())
+                .estadoId(entity.getEstadoId())
+                .build();
+    }
+}

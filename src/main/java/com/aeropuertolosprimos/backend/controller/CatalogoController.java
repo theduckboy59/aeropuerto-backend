@@ -27,6 +27,9 @@ public class CatalogoController {
     private final TripulacionRepository tripulacionRepository;
     private final DestinoAutorizadoRepository destinoAutorizadoRepository;
 
+    private final EstadoAvionRepository estadoAvionRepository;
+    private final AvionRepository avionRepository;
+
     @GetMapping("/status")
     public List<StatusCatalog> listarStatus() {
         return statusCatalogRepository.findAll();
@@ -84,5 +87,15 @@ public class CatalogoController {
 
         return destinoAutorizadoRepository
                 .findByEstadoId(1);
+    }
+
+    @GetMapping("/estado-avion")
+    public List<EstadoAvion> listarEstadoAvion() {
+        return estadoAvionRepository.findAll();
+    }
+
+    @GetMapping("/avion")
+    public List<Avion> listarAviones() {
+        return avionRepository.findByEstadoId(1);
     }
 }
