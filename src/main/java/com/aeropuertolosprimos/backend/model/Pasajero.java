@@ -15,8 +15,9 @@ public class Pasajero {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(name = "user_id")
-    private Integer userId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 
     @Column(name = "pasaporte", nullable = false, unique = true)
     private String pasaporte;
@@ -30,16 +31,16 @@ public class Pasajero {
     @Column(name = "nacionalidad", nullable = false)
     private String nacionalidad;
 
-    @Column(name = "codigo_area", nullable = false)
+    @Column(name = "codigo_area")
     private String codigoArea;
 
-    @Column(name = "telefono", nullable = false)
+    @Column(name = "telefono")
     private String telefono;
 
-    @Column(name = "telefono_emergencia")
+    @Column(name = "telefono_emergencia", nullable = false)
     private String telefonoEmergencia;
 
-    @Column(name = "direccion", nullable = false)
+    @Column(name = "direccion")
     private String direccion;
 
     @Column(name = "estado_id")

@@ -1,6 +1,7 @@
 package com.aeropuertolosprimos.backend.controller;
 
-import com.aeropuertolosprimos.backend.model.Pasajero;
+import com.aeropuertolosprimos.backend.dto.PasajeroRequest;
+import com.aeropuertolosprimos.backend.dto.PasajeroResponse;
 import com.aeropuertolosprimos.backend.service.PasajeroService;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,18 +18,33 @@ public class PasajeroController {
     }
 
     @PostMapping
-    public Pasajero crear(@RequestBody Pasajero pasajero) {
-        return service.crear(pasajero);
+    public PasajeroResponse crear(@RequestBody PasajeroRequest request) {
+        return service.crear(request);
     }
 
     @GetMapping
-    public List<Pasajero> listar() {
+    public List<PasajeroResponse> listar(
+            @RequestParam(required = false) String nombre
+    ) {
+
+        if (nombre != null && !nombre.isBlank()) {
+            return service.buscar(nombre);
+        }
+
         return service.listar();
     }
 
     @GetMapping("/{id}")
-    public Pasajero obtener(@PathVariable Integer id) {
+    public PasajeroResponse obtener(@PathVariable Integer id) {
         return service.obtenerPorId(id);
+    }
+
+    @PutMapping("/{id}")
+    public PasajeroResponse actualizar(
+            @PathVariable Integer id,
+            @RequestBody PasajeroRequest request
+    ) {
+        return service.actualizar(id, request);
     }
 
     @DeleteMapping("/{id}")

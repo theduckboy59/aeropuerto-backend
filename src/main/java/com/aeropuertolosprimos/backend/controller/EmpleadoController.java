@@ -24,24 +24,15 @@ public class EmpleadoController {
 
     @GetMapping("/empleados")
     public List<EmpleadoResponse> listar(
-
             @RequestParam(required = false) Integer tipoEmpleadoId,
-
             @RequestParam(required = false) Integer aerolineaId,
-
             @RequestParam(required = false) LocalDate fechaIngreso,
-
             @RequestParam(required = false) LocalDate fechaSalida,
-
             @RequestParam(required = false) Integer turnoId,
-
             @RequestParam(required = false) Integer rolId,
-
             @RequestParam(required = false) Integer nivelAccesoId,
-
             @RequestParam(required = false) Integer areaId
     ) {
-
         return service.listar(
                 tipoEmpleadoId,
                 aerolineaId,
@@ -60,8 +51,10 @@ public class EmpleadoController {
     }
 
     @PutMapping("/empleados/{id}")
-    public EmpleadoResponse actualizar(@PathVariable Integer id,
-                                       @RequestBody EmpleadoRequest request) {
+    public EmpleadoResponse actualizar(
+            @PathVariable Integer id,
+            @RequestBody EmpleadoRequest request
+    ) {
         return service.actualizar(id, request);
     }
 

@@ -44,6 +44,12 @@ CREATE TABLE rol (
                      nombre VARCHAR(100) NOT NULL UNIQUE
 );
 
+ALTER TABLE users
+    ADD CONSTRAINT fk_users_rol
+        FOREIGN KEY (rol_id) REFERENCES rol(id);
+
+CREATE INDEX idx_users_rol_id ON users(rol_id);
+
 CREATE TABLE area (
                       id SERIAL PRIMARY KEY,
                       nombre VARCHAR(100) NOT NULL UNIQUE
@@ -90,22 +96,27 @@ INSERT INTO tipo_empleado (nombre) VALUES ('PILOTO');
 INSERT INTO tipo_empleado (nombre) VALUES ('COPILOTO');
 INSERT INTO tipo_empleado (nombre) VALUES ('CABINA');
 INSERT INTO tipo_empleado (nombre) VALUES ('INGENIERO_VUELO');
+INSERT INTO tipo_empleado (nombre) VALUES ('ADMINISTRATIVO');
 
 INSERT INTO turno (nombre) VALUES ('MATUTINO');
 INSERT INTO turno (nombre) VALUES ('VESPERTINO');
 INSERT INTO turno (nombre) VALUES ('NOCTURNO');
 
-INSERT INTO nivel_acceso (nombre) VALUES ('ADMIN');
-INSERT INTO nivel_acceso (nombre) VALUES ('SUPERVISOR');
-INSERT INTO nivel_acceso (nombre) VALUES ('OPERATIVO');
+INSERT INTO nivel_acceso (nombre) VALUES ('ALTO');
+INSERT INTO nivel_acceso (nombre) VALUES ('MEDIO');
+INSERT INTO nivel_acceso (nombre) VALUES ('BASICO');
 
-INSERT INTO rol (nombre) VALUES ('ADMIN');
-INSERT INTO rol (nombre) VALUES ('CHECKIN');
-INSERT INTO rol (nombre) VALUES ('OPERADOR');
+INSERT INTO rol (nombre) VALUES ('CLIENTE');
+INSERT INTO rol (nombre) VALUES ('ADMIN_AEROLINEA');
+INSERT INTO rol (nombre) VALUES ('ADMIN_ABORDAJE');
+INSERT INTO rol (nombre) VALUES ('CONSULTAS_AEROLINEA');
+INSERT INTO rol (nombre) VALUES ('ADMIN_SISTEMA');
 
 INSERT INTO area (nombre) VALUES ('OPERACIONES');
 INSERT INTO area (nombre) VALUES ('CABINA');
 INSERT INTO area (nombre) VALUES ('TI');
+INSERT INTO area (nombre) VALUES ('ABORDAJE');
+INSERT INTO area (nombre) VALUES ('ADMINISTRACION');
 
 INSERT INTO licencia (nombre) VALUES ('COMERCIAL');
 INSERT INTO licencia (nombre) VALUES ('PRIVADA');

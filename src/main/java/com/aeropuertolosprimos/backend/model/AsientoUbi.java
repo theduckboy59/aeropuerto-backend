@@ -7,24 +7,34 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "users")
-public class User {
+@Table(name = "asiento_ubi")
+public class AsientoUbi {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    private String username;
+    @Column(name = "avion_id")
+    private Integer avionId;
 
-    private String email;
+    @Column(name = "clase_vuelo_id")
+    private Integer claseVueloId;
 
-    private String password;
+    @Column(name = "tipo_asiento_id")
+    private Integer tipoAsientoId;
 
-    @Column(name = "estado_id", nullable = false)
-    private Integer estadoId;
+    private Integer nivel;
 
-    @Column(name = "rol_id")
-    private Integer rolId;
+    private Integer fila;
+
+    private String columna;
+
+    @Column(name = "numero_asiento")
+    private String numeroAsiento;
+
+    private Integer bloque;
+
+    private String lado;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -36,10 +46,6 @@ public class User {
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
-
-        if (this.estadoId == null) {
-            this.estadoId = 1;
-        }
     }
 
     @PreUpdate

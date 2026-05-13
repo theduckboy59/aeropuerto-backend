@@ -32,6 +32,8 @@ public class CatalogoController {
 
     private final ClaseVueloRepository claseVueloRepository;
 
+    private final TipoAsientoRepository tipoAsientoRepository;
+
     @GetMapping("/status")
     public List<StatusCatalog> listarStatus() {
         return statusCatalogRepository.findAll();
@@ -104,5 +106,10 @@ public class CatalogoController {
     @GetMapping("/clase-vuelo")
     public List<ClaseVuelo> listarClasesVuelo() {
         return claseVueloRepository.findAllByOrderByNombreAsc();
+    }
+
+    @GetMapping("/tipo-asiento")
+    public List<TipoAsiento> listarTiposAsiento() {
+        return tipoAsientoRepository.findAllByOrderByNombreAsc();
     }
 }

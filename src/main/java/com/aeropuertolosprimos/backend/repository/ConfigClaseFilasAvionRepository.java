@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface ConfigClaseFilasAvionRepository extends JpaRepository<ConfigClaseFilasAvion, Integer> {
 
     @Query("""
@@ -52,4 +54,6 @@ public interface ConfigClaseFilasAvionRepository extends JpaRepository<ConfigCla
             @Param("filaHasta") Integer filaHasta,
             @Param("idExcluir") Integer idExcluir
     );
+
+    List<ConfigClaseFilasAvion> findByAvionIdAndActivoTrueOrderByFilaDesdeAsc(Integer avionId);
 }
