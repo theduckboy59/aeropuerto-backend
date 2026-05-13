@@ -25,7 +25,6 @@ public class TripulacionDetalle {
 
     @PrePersist
     public void prePersist() {
-
         this.createdAt = LocalDateTime.now();
     }
 }

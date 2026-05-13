@@ -13,7 +13,11 @@ public class TripulacionResponse {
 
     private Integer aerolineaId;
 
+    private String aerolineaNombre;
+
     private Integer estadoTripulacionId;
+
+    private String estadoTripulacionNombre;
 
     private List<TripulacionDetalleResponse> empleados;
 }

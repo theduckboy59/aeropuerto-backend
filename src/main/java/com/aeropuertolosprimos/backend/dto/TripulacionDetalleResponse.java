@@ -2,6 +2,8 @@ package com.aeropuertolosprimos.backend.dto;
 
 import lombok.Data;
 
+import java.time.LocalDate;
+
 @Data
 public class TripulacionDetalleResponse {
 
@@ -12,4 +14,12 @@ public class TripulacionDetalleResponse {
     private String nombreCompleto;
 
     private Integer tipoEmpleadoId;
+
+    private String tipoEmpleadoNombre;
+
+    private Integer licenciaId;
+
+    private String licenciaNombre;
+
+    private LocalDate fechaVencimientoLicencia;
 }
