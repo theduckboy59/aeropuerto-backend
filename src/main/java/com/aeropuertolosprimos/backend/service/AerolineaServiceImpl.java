@@ -6,7 +6,9 @@ import com.aeropuertolosprimos.backend.model.Aerolinea;
 import com.aeropuertolosprimos.backend.repository.AerolineaRepository;
 import org.springframework.stereotype.Service;
 
+import java.text.Normalizer;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class AerolineaServiceImpl
@@ -27,43 +29,19 @@ public class AerolineaServiceImpl
 
         validarRequest(request);
 
-        if (repository.existsByCodigoIataIgnoreCase(
-                request.getCodigoIata()
-        )) {
+        String nombreLimpio = request.getNombre().trim();
+        String paisLimpio = request.getPais().trim();
 
-            throw new RuntimeException(
-                    "Código IATA ya registrado"
-            );
-        }
-
-        if (repository.existsByCodigoIcaoIgnoreCase(
-                request.getCodigoIcao()
-        )) {
-
-            throw new RuntimeException(
-                    "Código ICAO ya registrado"
-            );
-        }
+        String codigoIata = generarCodigoIata(nombreLimpio);
+        String codigoIcao = generarCodigoIcao(nombreLimpio, paisLimpio);
 
         Aerolinea aerolinea =
                 new Aerolinea();
 
-        aerolinea.setNombre(
-                request.getNombre()
-        );
-
-        aerolinea.setCodigoIata(
-                request.getCodigoIata()
-        );
-
-        aerolinea.setCodigoIcao(
-                request.getCodigoIcao()
-        );
-
-        aerolinea.setPais(
-                request.getPais()
-        );
-
+        aerolinea.setNombre(nombreLimpio);
+        aerolinea.setCodigoIata(codigoIata);
+        aerolinea.setCodigoIcao(codigoIcao);
+        aerolinea.setPais(paisLimpio);
         aerolinea.setEstadoId(1);
 
         aerolinea = repository.save(
@@ -135,21 +113,33 @@ public class AerolineaServiceImpl
                                         "Aerolínea no encontrada"
                                 ));
 
-        aerolinea.setNombre(
-                request.getNombre()
-        );
+        String nombreLimpio = request.getNombre().trim();
+        String paisLimpio = request.getPais().trim();
 
-        aerolinea.setCodigoIata(
-                request.getCodigoIata()
-        );
+        aerolinea.setNombre(nombreLimpio);
+        aerolinea.setPais(paisLimpio);
 
-        aerolinea.setCodigoIcao(
-                request.getCodigoIcao()
-        );
+        /*
+         * Importante:
+         * No se regeneran los códigos al editar para no afectar reportes,
+         * vuelos, aviones u otras referencias visuales que ya usen esos códigos.
+         * Solo se generan si por algún motivo antiguo vienen vacíos.
+         */
+        if (aerolinea.getCodigoIata() == null ||
+                aerolinea.getCodigoIata().isBlank()) {
 
-        aerolinea.setPais(
-                request.getPais()
-        );
+            aerolinea.setCodigoIata(
+                    generarCodigoIata(nombreLimpio)
+            );
+        }
+
+        if (aerolinea.getCodigoIcao() == null ||
+                aerolinea.getCodigoIcao().isBlank()) {
+
+            aerolinea.setCodigoIcao(
+                    generarCodigoIcao(nombreLimpio, paisLimpio)
+            );
+        }
 
         aerolinea = repository.save(
                 aerolinea
@@ -183,27 +173,17 @@ public class AerolineaServiceImpl
             AerolineaRequest request
     ) {
 
+        if (request == null) {
+            throw new RuntimeException(
+                    "Debe ingresar los campos obligatorios"
+            );
+        }
+
         if (request.getNombre() == null ||
                 request.getNombre().isBlank()) {
 
             throw new RuntimeException(
                     "Nombre obligatorio"
-            );
-        }
-
-        if (request.getCodigoIata() == null ||
-                request.getCodigoIata().isBlank()) {
-
-            throw new RuntimeException(
-                    "Código IATA obligatorio"
-            );
-        }
-
-        if (request.getCodigoIcao() == null ||
-                request.getCodigoIcao().isBlank()) {
-
-            throw new RuntimeException(
-                    "Código ICAO obligatorio"
             );
         }
 
@@ -214,6 +194,101 @@ public class AerolineaServiceImpl
                     "País obligatorio"
             );
         }
+    }
+
+    private String generarCodigoIata(
+            String nombre
+    ) {
+
+        String base = obtenerBaseLetras(nombre);
+
+        if (base.length() < 2) {
+            base = completarDerecha(base, 2);
+        }
+
+        String codigoBase = base.substring(0, 2);
+        String codigo = codigoBase;
+
+        int contador = 1;
+
+        while (repository.existsByCodigoIataIgnoreCase(codigo)) {
+
+            if (contador <= 9) {
+                codigo = codigoBase.substring(0, 1) + contador;
+            } else {
+                codigo = "A" + contador;
+            }
+
+            contador++;
+        }
+
+        return codigo.toUpperCase(Locale.ROOT);
+    }
+
+    private String generarCodigoIcao(
+            String nombre,
+            String pais
+    ) {
+
+        String baseNombre = obtenerBaseLetras(nombre);
+        String basePais = obtenerBaseLetras(pais);
+
+        String base = baseNombre + basePais;
+
+        if (base.length() < 3) {
+            base = completarDerecha(base, 3);
+        }
+
+        String codigoBase = base.substring(0, 3);
+        String codigo = codigoBase;
+
+        int contador = 1;
+
+        while (repository.existsByCodigoIcaoIgnoreCase(codigo)) {
+
+            if (contador <= 9) {
+                codigo = codigoBase.substring(0, 2) + contador;
+            } else {
+                codigo = "A" + contador;
+            }
+
+            contador++;
+        }
+
+        return codigo.toUpperCase(Locale.ROOT);
+    }
+
+    private String obtenerBaseLetras(
+            String texto
+    ) {
+
+        String limpio = Normalizer.normalize(
+                        texto,
+                        Normalizer.Form.NFD
+                )
+                .replaceAll("\\p{M}", "")
+                .replaceAll("[^A-Za-z]", "")
+                .toUpperCase(Locale.ROOT);
+
+        if (limpio.isBlank()) {
+            return "AER";
+        }
+
+        return limpio;
+    }
+
+    private String completarDerecha(
+            String texto,
+            int longitud
+    ) {
+
+        StringBuilder builder = new StringBuilder(texto);
+
+        while (builder.length() < longitud) {
+            builder.append("X");
+        }
+
+        return builder.toString();
     }
 
     private AerolineaResponse convertirResponse(

@@ -21,4 +21,8 @@ public interface AeropuertoRepository
             Integer estadoId,
             String pais
     );
+
+    boolean existsByCodigoIataIgnoreCase(String codigoIata);
+
+    boolean existsByCodigoIcaoIgnoreCase(String codigoIcao);
 }

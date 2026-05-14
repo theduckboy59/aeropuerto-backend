@@ -9,10 +9,6 @@ public class AeropuertoRequest {
 
     private String nombre;
 
-    private String codigoIata;
-
-    private String codigoIcao;
-
     private String pais;
 
     private String ciudad;

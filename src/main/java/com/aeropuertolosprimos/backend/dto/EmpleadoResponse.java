@@ -16,6 +16,7 @@ public class EmpleadoResponse {
 
     private Integer tipoEmpleadoId;
     private Integer aerolineaId;
+    private String aerolineaNombre;
 
     private String codigoEmpleado;
     private String nombreCompleto;

@@ -14,6 +14,9 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.aeropuertolosprimos.backend.model.Aerolinea;
+import com.aeropuertolosprimos.backend.repository.AerolineaRepository;
+
 import java.time.LocalDate;
 import java.util.List;
 
@@ -25,15 +28,19 @@ public class EmpleadoServiceImpl implements EmpleadoService {
     private final TipoEmpleadoRepository tipoEmpleadoRepository;
     private final PasswordEncoder passwordEncoder;
 
+    private final AerolineaRepository aerolineaRepository;
+
     public EmpleadoServiceImpl(
             EmpleadoRepository empleadoRepository,
             UserRepository userRepository,
             TipoEmpleadoRepository tipoEmpleadoRepository,
+            AerolineaRepository aerolineaRepository,
             PasswordEncoder passwordEncoder
     ) {
         this.empleadoRepository = empleadoRepository;
         this.userRepository = userRepository;
         this.tipoEmpleadoRepository = tipoEmpleadoRepository;
+        this.aerolineaRepository = aerolineaRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -295,6 +302,9 @@ public class EmpleadoServiceImpl implements EmpleadoService {
         response.setEmail(user.getEmail());
         response.setTipoEmpleadoId(empleado.getTipoEmpleadoId());
         response.setAerolineaId(empleado.getAerolineaId());
+        response.setAerolineaNombre(
+                obtenerNombreAerolinea(empleado.getAerolineaId())
+        );
         response.setCodigoEmpleado(empleado.getCodigoEmpleado());
         response.setNombreCompleto(empleado.getNombreCompleto());
         response.setFechaIngreso(empleado.getFechaIngreso());
@@ -308,5 +318,16 @@ public class EmpleadoServiceImpl implements EmpleadoService {
         response.setEstadoId(empleado.getEstadoId());
 
         return response;
+    }
+
+    private String obtenerNombreAerolinea(Integer aerolineaId) {
+
+        if (aerolineaId == null) {
+            return null;
+        }
+
+        return aerolineaRepository.findById(aerolineaId)
+                .map(Aerolinea::getNombre)
+                .orElse(null);
     }
 }

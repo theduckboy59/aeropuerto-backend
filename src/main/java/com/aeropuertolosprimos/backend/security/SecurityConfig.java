@@ -100,6 +100,8 @@ public class SecurityConfig {
                         .requestMatchers("/register").permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/pasajeros/**").permitAll()
+                        .requestMatchers("/aeropuertos" +
+                                "/**").permitAll()
 
                         .anyRequest().authenticated()
                 )
