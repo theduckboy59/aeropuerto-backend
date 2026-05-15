@@ -13,4 +13,6 @@ public interface AvionRepository extends
     List<Avion> findByEstadoId(Integer estadoId);
 
     long countByAerolineaIdAndEstadoId(Integer aerolineaId, Integer estadoId);
+
+    boolean existsByCodigoAvionIgnoreCase(String codigoAvion);
 }

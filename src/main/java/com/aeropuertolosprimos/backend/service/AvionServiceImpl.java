@@ -26,6 +26,7 @@ public class AvionServiceImpl implements AvionService {
     private final AerolineaRepository aerolineaRepository;
     private final EstadoAvionRepository estadoAvionRepository;
     private final ModeloAvionRepository modeloAvionRepository;
+    private final EstadoAvionCatalogService estadoAvionCatalogService;
 
     @Override
     public Page<AvionResponse> findAll(
@@ -80,7 +81,9 @@ public class AvionServiceImpl implements AvionService {
         entity.setAerolineaId(request.getAerolineaId());
         entity.setEstadoAvionId(request.getEstadoAvionId());
         entity.setModeloAvionId(request.getModeloAvionId());
-        entity.setCodigoAvion(request.getCodigoAvion());
+
+        entity.setCodigoAvion(generarCodigoAvion(aerolinea));
+
         entity.setNumeroSerie(request.getNumeroSerie());
         entity.setAnio(request.getAnio());
         entity.setFilasConfiguradas(request.getFilasConfiguradas());
@@ -91,6 +94,7 @@ public class AvionServiceImpl implements AvionService {
 
         return mapResponse(entity);
     }
+
 
     @Override
     public AvionResponse update(
@@ -103,6 +107,24 @@ public class AvionServiceImpl implements AvionService {
                         new RuntimeException("Avión no encontrado")
                 );
 
+        // Validar si se está intentando modificar filasConfiguradas
+        boolean cambiandoFilas = !Objects.equals(
+                entity.getFilasConfiguradas(),
+                request.getFilasConfiguradas()
+        );
+
+        // Si está cambiando filas, validar que el estado lo permita
+        if (cambiandoFilas) {
+            String nombreEstado = estadoAvionCatalogService.getNombreById(entity.getEstadoAvionId());
+            if ("DISPONIBLE".equals(nombreEstado) || "ASIGNADO".equals(nombreEstado)) {
+                throw new RuntimeException(
+                        String.format("No se puede modificar las filas configuradas cuando el avión está en estado %s. " +
+                                        "Solo se permite en MANTENIMIENTO o FUERA_SERVICIO.",
+                                nombreEstado)
+                );
+            }
+        }
+
         Aerolinea aerolinea = findAerolinea(request.getAerolineaId());
         ModeloAvion modeloAvion = findModeloAvion(request.getModeloAvionId());
 
@@ -111,12 +133,19 @@ public class AvionServiceImpl implements AvionService {
         validateAerolineaIsActive(aerolinea);
         validateModelIsActive(modeloAvion);
         validateConfiguredRows(request.getFilasConfiguradas(), modeloAvion);
-        validateStructuralChange(entity, request);
+
+        // validateStructuralChange(entity, request); // COMENTADO
 
         entity.setAerolineaId(request.getAerolineaId());
         entity.setEstadoAvionId(request.getEstadoAvionId());
         entity.setModeloAvionId(request.getModeloAvionId());
-        entity.setCodigoAvion(request.getCodigoAvion());
+
+        if (entity.getCodigoAvion() == null ||
+                entity.getCodigoAvion().isBlank()) {
+
+            entity.setCodigoAvion(generarCodigoAvion(aerolinea));
+        }
+
         entity.setNumeroSerie(request.getNumeroSerie());
         entity.setAnio(request.getAnio());
         entity.setFilasConfiguradas(request.getFilasConfiguradas());
@@ -156,6 +185,8 @@ public class AvionServiceImpl implements AvionService {
                 .orElseThrow(() ->
                         new RuntimeException("Avión no encontrado")
                 );
+
+        //validarSiPuedeModificarse(entity, "cambiar el estado operativo");
 
         findEstadoAvion(estadoAvionId);
 
@@ -224,6 +255,30 @@ public class AvionServiceImpl implements AvionService {
                             modeloAvion.getFilasMax()
             );
         }
+    }
+
+    private String generarCodigoAvion(Aerolinea aerolinea) {
+
+        String prefijo = "AVN";
+
+        if (aerolinea.getCodigoIata() != null &&
+                !aerolinea.getCodigoIata().isBlank()) {
+
+            prefijo = aerolinea.getCodigoIata()
+                    .trim()
+                    .toUpperCase();
+        }
+
+        int correlativo = 1;
+
+        String codigo;
+
+        do {
+            codigo = prefijo + "-" + String.format("%04d", correlativo);
+            correlativo++;
+        } while (repository.existsByCodigoAvionIgnoreCase(codigo));
+
+        return codigo;
     }
 
     private void validateStructuralChange(

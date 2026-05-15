@@ -5,10 +5,10 @@ CREATE TABLE estado_avion (
 
 INSERT INTO estado_avion (nombre)
 VALUES
-    ('ACTIVO'),
+    ('ASIGNADO'),
     ('MANTENIMIENTO'),
     ('FUERA_SERVICIO'),
-    ('INACTIVO');
+    ('DISPONIBLE');
 
 
 CREATE TABLE avion (
@@ -78,7 +78,7 @@ VALUES
 -- AEROLÍNEA 1 - AVIANCA / BOEING
 (
     1,
-    (SELECT id FROM estado_avion WHERE nombre = 'ACTIVO'),
+    (SELECT id FROM estado_avion WHERE nombre = 'DISPONIBLE'),
     (SELECT id FROM modelo_avion WHERE fabricante = 'Boeing' AND codigo_modelo = '737-800'),
     'AV-BOE-738-001',
     'SN-BOE738-2020-001',
@@ -89,7 +89,7 @@ VALUES
 ),
 (
     1,
-    (SELECT id FROM estado_avion WHERE nombre = 'ACTIVO'),
+    (SELECT id FROM estado_avion WHERE nombre = 'DISPONIBLE'),
     (SELECT id FROM modelo_avion WHERE fabricante = 'Boeing' AND codigo_modelo = '737-700'),
     'AV-BOE-737-002',
     'SN-BOE737-2018-002',
@@ -111,7 +111,7 @@ VALUES
 ),
 (
     1,
-    (SELECT id FROM estado_avion WHERE nombre = 'ACTIVO'),
+    (SELECT id FROM estado_avion WHERE nombre = 'DISPONIBLE'),
     (SELECT id FROM modelo_avion WHERE fabricante = 'Boeing' AND codigo_modelo = '787-8'),
     'AV-BOE-788-004',
     'SN-BOE788-2021-004',
@@ -124,7 +124,7 @@ VALUES
 -- AEROLÍNEA 2 - COPA AIRLINES / AIRBUS
 (
     2,
-    (SELECT id FROM estado_avion WHERE nombre = 'ACTIVO'),
+    (SELECT id FROM estado_avion WHERE nombre = 'DISPONIBLE'),
     (SELECT id FROM modelo_avion WHERE fabricante = 'Airbus' AND codigo_modelo = 'A320'),
     'CM-AIR-A320-001',
     'SN-A320-2019-001',
@@ -135,7 +135,7 @@ VALUES
 ),
 (
     2,
-    (SELECT id FROM estado_avion WHERE nombre = 'ACTIVO'),
+    (SELECT id FROM estado_avion WHERE nombre = 'DISPONIBLE'),
     (SELECT id FROM modelo_avion WHERE fabricante = 'Airbus' AND codigo_modelo = 'A321'),
     'CM-AIR-A321-002',
     'SN-A321-2022-002',
@@ -157,7 +157,7 @@ VALUES
 ),
 (
     2,
-    (SELECT id FROM estado_avion WHERE nombre = 'ACTIVO'),
+    (SELECT id FROM estado_avion WHERE nombre = 'DISPONIBLE'),
     (SELECT id FROM modelo_avion WHERE fabricante = 'Airbus' AND codigo_modelo = 'A350-900'),
     'CM-AIR-A350-004',
     'SN-A350-2023-004',
@@ -170,7 +170,7 @@ VALUES
 -- REGIONALES REPARTIDOS ENTRE AVIANCA Y COPA
 (
     1,
-    (SELECT id FROM estado_avion WHERE nombre = 'ACTIVO'),
+    (SELECT id FROM estado_avion WHERE nombre = 'DISPONIBLE'),
     (SELECT id FROM modelo_avion WHERE fabricante = 'Embraer' AND codigo_modelo = 'E190'),
     'AV-EMB-E190-001',
     'SN-E190-2018-001',
@@ -181,7 +181,7 @@ VALUES
 ),
 (
     2,
-    (SELECT id FROM estado_avion WHERE nombre = 'ACTIVO'),
+    (SELECT id FROM estado_avion WHERE nombre = 'DISPONIBLE'),
     (SELECT id FROM modelo_avion WHERE fabricante = 'Embraer' AND codigo_modelo = 'E195'),
     'CM-EMB-E195-002',
     'SN-E195-2020-002',
@@ -203,7 +203,7 @@ VALUES
 ),
 (
     2,
-    (SELECT id FROM estado_avion WHERE nombre = 'ACTIVO'),
+    (SELECT id FROM estado_avion WHERE nombre = 'DISPONIBLE'),
     (SELECT id FROM modelo_avion WHERE fabricante = 'ATR' AND codigo_modelo = 'ATR-72'),
     'CM-ATR-072-004',
     'SN-ATR72-2021-004',
@@ -216,7 +216,7 @@ VALUES
 -- AVIONES PEQUEÑOS / PRIVADOS
 (
     1,
-    (SELECT id FROM estado_avion WHERE nombre = 'ACTIVO'),
+    (SELECT id FROM estado_avion WHERE nombre = 'DISPONIBLE'),
     (SELECT id FROM modelo_avion WHERE fabricante = 'Cessna' AND codigo_modelo = '208-Caravan'),
     'AV-CES-208-001',
     'SN-C208-2019-001',
@@ -227,7 +227,7 @@ VALUES
 ),
 (
     2,
-    (SELECT id FROM estado_avion WHERE nombre = 'ACTIVO'),
+    (SELECT id FROM estado_avion WHERE nombre = 'DISPONIBLE'),
     (SELECT id FROM modelo_avion WHERE fabricante = 'Gulfstream' AND codigo_modelo = 'G650'),
     'CM-GUL-G650-001',
     'SN-G650-2022-001',
@@ -238,12 +238,12 @@ VALUES
 ),
 (
     2,
-    (SELECT id FROM estado_avion WHERE nombre = 'INACTIVO'),
+    (SELECT id FROM estado_avion WHERE nombre = 'DISPONIBLE'),
     (SELECT id FROM modelo_avion WHERE fabricante = 'Beechcraft' AND codigo_modelo = 'King-Air-350'),
     'CM-BEE-KA350-001',
     'SN-KA350-2014-001',
     2014,
     10,
     40,
-    2
+    1
 );

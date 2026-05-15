@@ -24,13 +24,13 @@ VALUES
 CREATE TABLE config_clase_filas_avion (
                                           id SERIAL PRIMARY KEY,
 
-                                          avion_id INT NOT NULL,
+                                          avion_id INT NULL,
 
-                                          clase_vuelo_id INT NOT NULL,
+                                          clase_vuelo_id INT NULL,
 
-                                          fila_desde INT NOT NULL,
+                                          fila_desde INT NULL,
 
-                                          fila_hasta INT NOT NULL,
+                                          fila_hasta INT NULL,
 
                                           activo BOOLEAN DEFAULT TRUE,
 
@@ -51,19 +51,19 @@ CREATE TABLE config_clase_filas_avion (
 CREATE TABLE asiento_ubi (
                              id SERIAL PRIMARY KEY,
 
-                             avion_id INT NOT NULL,
+                             avion_id INT NULL,
 
-                             clase_vuelo_id INT NOT NULL,
+                             clase_vuelo_id INT NULL,
 
-                             tipo_asiento_id INT NOT NULL,
+                             tipo_asiento_id INT NULL,
 
-                             nivel INT NOT NULL,
+                             nivel INT NULL,
 
-                             fila INT NOT NULL,
+                             fila INT NULL,
 
-                             columna VARCHAR(2) NOT NULL,
+                             columna VARCHAR(2) NULL,
 
-                             numero_asiento VARCHAR(10) NOT NULL,
+                             numero_asiento VARCHAR(10) NULL,
 
                              bloque INT,
 

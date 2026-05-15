@@ -13,6 +13,8 @@ public class ConfigClaseFilasAvionResponse {
 
     private Integer claseVueloId;
 
+    private String claseVueloNombre;
+
     private Integer filaDesde;
 
     private Integer filaHasta;
