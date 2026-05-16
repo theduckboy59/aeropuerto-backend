@@ -24,4 +24,10 @@ public interface DestinoAutorizadoRepository
             Integer aeropuertoId,
             Integer estadoId
     );
+
+    boolean existsByAerolineaIdAndAeropuertoIdAndEstadoId(
+            Integer aerolineaId,
+            Integer aeropuertoId,
+            Integer estadoId
+    );
 }
