@@ -54,6 +54,8 @@ public class ConfigClaseFilasAvionService {
 
     private final EstadoAvionCatalogService estadoAvionCatalogService;
 
+    private final AsientoUbiSyncService asientoUbiSyncService;
+
     public List<ConfigClaseFilasAvionCompletaResponse> listarConfiguracionesAvionesActivos(
             String q
     ) {
@@ -146,6 +148,8 @@ public class ConfigClaseFilasAvionService {
 
         configRepository.save(rango);
 
+        asientoUbiSyncService.sincronizarPorAvion(avion.getId());
+
         return construirConfiguracionCompletaDesdeAvion(avion);
     }
 
@@ -168,6 +172,8 @@ public class ConfigClaseFilasAvionService {
         }
 
         configRepository.saveAll(activas);
+
+        asientoUbiSyncService.sincronizarPorAvion(avionId);
 
         return construirConfiguracionCompletaDesdeAvion(avion);
     }
@@ -372,6 +378,8 @@ public class ConfigClaseFilasAvionService {
         nuevo.setActivo(true);
 
         configRepository.save(nuevo);
+
+        asientoUbiSyncService.sincronizarPorAvion(avionId);
 
         return construirConfiguracionCompletaDesdeAvion(avion);
     }

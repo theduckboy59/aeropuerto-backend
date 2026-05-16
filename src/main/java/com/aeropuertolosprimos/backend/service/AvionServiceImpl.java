@@ -18,6 +18,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.Objects;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
 @RequiredArgsConstructor
 public class AvionServiceImpl implements AvionService {
@@ -27,6 +29,8 @@ public class AvionServiceImpl implements AvionService {
     private final EstadoAvionRepository estadoAvionRepository;
     private final ModeloAvionRepository modeloAvionRepository;
     private final EstadoAvionCatalogService estadoAvionCatalogService;
+
+    private final AsientoUbiSyncService asientoUbiSyncService;
 
     @Override
     public Page<AvionResponse> findAll(
@@ -65,6 +69,7 @@ public class AvionServiceImpl implements AvionService {
     }
 
     @Override
+    @Transactional
     public AvionResponse create(AvionRequest request) {
 
         Aerolinea aerolinea = findAerolinea(request.getAerolineaId());
@@ -92,11 +97,15 @@ public class AvionServiceImpl implements AvionService {
 
         repository.save(entity);
 
+        asientoUbiSyncService.sincronizarPorAvion(entity.getId());
+
         return mapResponse(entity);
     }
 
 
     @Override
+
+    @Transactional
     public AvionResponse update(
             Integer id,
             AvionRequest request
@@ -112,6 +121,13 @@ public class AvionServiceImpl implements AvionService {
                 entity.getFilasConfiguradas(),
                 request.getFilasConfiguradas()
         );
+
+        boolean cambiandoModelo = !Objects.equals(
+                entity.getModeloAvionId(),
+                request.getModeloAvionId()
+        );
+
+        boolean cambiaEstructuraAsientos = cambiandoFilas || cambiandoModelo;
 
         // Si está cambiando filas, validar que el estado lo permita
         if (cambiandoFilas) {
@@ -155,6 +171,11 @@ public class AvionServiceImpl implements AvionService {
         }
 
         repository.save(entity);
+
+        if (cambiaEstructuraAsientos) {
+            asientoUbiSyncService.sincronizarPorAvion(entity.getId());
+        }
+
 
         return mapResponse(entity);
     }

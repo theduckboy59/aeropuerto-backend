@@ -13,7 +13,13 @@ public class AsientoUbiResponse {
 
     private Integer claseVueloId;
 
+    private String claseVueloNombre;
+
+    private Boolean vendible;
+
     private Integer tipoAsientoId;
+
+    private String tipoAsientoNombre;
 
     private Integer nivel;
 

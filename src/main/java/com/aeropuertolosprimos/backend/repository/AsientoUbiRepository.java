@@ -19,6 +19,11 @@ public interface AsientoUbiRepository extends JpaRepository<AsientoUbi, Integer>
               AND (:fila IS NULL OR a.fila = :fila)
               AND (:columna IS NULL OR a.columna = :columna)
               AND (:numeroAsiento IS NULL OR a.numeroAsiento = :numeroAsiento)
+              AND (
+                    :vendible IS NULL
+                    OR (:vendible = true AND a.claseVueloId IS NOT NULL)
+                    OR (:vendible = false AND a.claseVueloId IS NULL)
+              )
             """)
     Page<AsientoUbi> buscarConFiltros(
             @Param("avionId") Integer avionId,
@@ -28,6 +33,7 @@ public interface AsientoUbiRepository extends JpaRepository<AsientoUbi, Integer>
             @Param("fila") Integer fila,
             @Param("columna") String columna,
             @Param("numeroAsiento") String numeroAsiento,
+            @Param("vendible") Boolean vendible,
             Pageable pageable
     );
 
