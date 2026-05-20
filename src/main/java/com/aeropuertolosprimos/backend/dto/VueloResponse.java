@@ -41,6 +41,10 @@ public class VueloResponse {
 
     private String aeropuertoLlegadaCodigoIcao;
 
+    private String puertaEmbarqueSalida;
+
+    private String puertaEmbarqueLlegada;
+
     private LocalDate fechaSalida;
 
     private LocalTime horaSalida;

@@ -11,6 +11,7 @@ import com.aeropuertolosprimos.backend.model.VueloProgramado;
 import com.aeropuertolosprimos.backend.repository.AerolineaRepository;
 import com.aeropuertolosprimos.backend.repository.AeropuertoRepository;
 import com.aeropuertolosprimos.backend.repository.DestinoAutorizadoRepository;
+import com.aeropuertolosprimos.backend.repository.PuertaEmbarqueRepository;
 import com.aeropuertolosprimos.backend.repository.StatusCatalogRepository;
 import com.aeropuertolosprimos.backend.repository.VueloProgramadoRepository;
 import com.aeropuertolosprimos.backend.repository.VueloRepository;
@@ -24,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +40,7 @@ public class VueloServiceImpl implements VueloService {
     private final AeropuertoRepository aeropuertoRepository;
     private final StatusCatalogRepository statusCatalogRepository;
     private final DestinoAutorizadoRepository destinoAutorizadoRepository;
+    private final PuertaEmbarqueRepository puertaEmbarqueRepository;
 
     @Override
     public Page<VueloResponse> findAll(
@@ -83,13 +86,9 @@ public class VueloServiceImpl implements VueloService {
             Integer id
     ) {
 
-        Vuelo vuelo = findVuelo(
-                id
-        );
+        Vuelo vuelo = findVuelo(id);
 
-        validarVueloActivo(
-                vuelo
-        );
+        validarVueloActivo(vuelo);
 
         VueloProgramado programado = vueloProgramadoRepository
                 .findByVueloId(vuelo.getId())
@@ -97,10 +96,7 @@ public class VueloServiceImpl implements VueloService {
                         new BusinessException("Programación del vuelo no encontrada")
                 );
 
-        return mapResponse(
-                vuelo,
-                programado
-        );
+        return mapResponse(vuelo, programado);
     }
 
     @Override
@@ -108,9 +104,7 @@ public class VueloServiceImpl implements VueloService {
             String codigoVuelo
     ) {
 
-        String codigo = normalizarCodigo(
-                codigoVuelo
-        );
+        String codigo = normalizarCodigo(codigoVuelo);
 
         if (codigo == null) {
             throw new BusinessException("Debe ingresar los campos obligatorios");
@@ -122,9 +116,7 @@ public class VueloServiceImpl implements VueloService {
                         new BusinessException("El número de vuelo ingresado no se encontró")
                 );
 
-        validarVueloActivo(
-                vuelo
-        );
+        validarVueloActivo(vuelo);
 
         VueloProgramado programado = vueloProgramadoRepository
                 .findByVueloId(vuelo.getId())
@@ -132,10 +124,7 @@ public class VueloServiceImpl implements VueloService {
                         new BusinessException("Programación del vuelo no encontrada")
                 );
 
-        return mapResponse(
-                vuelo,
-                programado
-        );
+        return mapResponse(vuelo, programado);
     }
 
     @Override
@@ -148,26 +137,14 @@ public class VueloServiceImpl implements VueloService {
             throw new BusinessException("Debe ingresar los campos obligatorios");
         }
 
-        validarCamposObligatorios(
-                request
-        );
+        normalizarRequest(request);
 
-        validarReferenciasActivas(
-                request
-        );
-
-        validarDestinosAutorizados(
-                request
-        );
-
-        validarReglasProgramacion(
-                request
-        );
-
-        validarProgramacionDuplicadaActiva(
-                request,
-                null
-        );
+        validarCamposObligatorios(request);
+        validarReferenciasActivas(request);
+        validarDestinosAutorizados(request);
+        validarPuertasEmbarque(request);
+        validarReglasProgramacion(request);
+        validarProgramacionDuplicadaActiva(request, null);
 
         Vuelo vuelo = new Vuelo();
 
@@ -183,9 +160,7 @@ public class VueloServiceImpl implements VueloService {
                 obtenerEstadoIdPorNombre(ESTADO_ACTIVO)
         );
 
-        Vuelo vueloGuardado = vueloRepository.save(
-                vuelo
-        );
+        Vuelo vueloGuardado = vueloRepository.save(vuelo);
 
         VueloProgramado programado = new VueloProgramado();
 
@@ -199,6 +174,14 @@ public class VueloServiceImpl implements VueloService {
 
         programado.setAeropuertoLlegadaId(
                 request.getAeropuertoLlegadaId()
+        );
+
+        programado.setPuertaEmbarqueSalida(
+                request.getPuertaEmbarqueSalida()
+        );
+
+        programado.setPuertaEmbarqueLlegada(
+                request.getPuertaEmbarqueLlegada()
         );
 
         programado.setFechaSalida(
@@ -217,9 +200,8 @@ public class VueloServiceImpl implements VueloService {
                 request.getHoraLlegada()
         );
 
-        VueloProgramado programadoGuardado = vueloProgramadoRepository.save(
-                programado
-        );
+        VueloProgramado programadoGuardado =
+                vueloProgramadoRepository.save(programado);
 
         return mapResponse(
                 vueloGuardado,
@@ -238,17 +220,13 @@ public class VueloServiceImpl implements VueloService {
             throw new BusinessException("Debe ingresar los campos obligatorios");
         }
 
-        validarCamposObligatorios(
-                request
-        );
+        normalizarRequest(request);
 
-        Vuelo vuelo = findVuelo(
-                id
-        );
+        validarCamposObligatorios(request);
 
-        validarVueloActivo(
-                vuelo
-        );
+        Vuelo vuelo = findVuelo(id);
+
+        validarVueloActivo(vuelo);
 
         VueloProgramado programado = vueloProgramadoRepository
                 .findByVueloId(vuelo.getId())
@@ -256,31 +234,15 @@ public class VueloServiceImpl implements VueloService {
                         new BusinessException("Programación del vuelo no encontrada")
                 );
 
-        validarReferenciasActivas(
-                request
-        );
-
-        validarDestinosAutorizados(
-                request
-        );
-
-        validarReglasProgramacion(
-                request
-        );
-
-        validarProgramacionDuplicadaActiva(
-                request,
-                vuelo.getId()
-        );
+        validarReferenciasActivas(request);
+        validarDestinosAutorizados(request);
+        validarPuertasEmbarque(request);
+        validarReglasProgramacion(request);
+        validarProgramacionDuplicadaActiva(request, vuelo.getId());
 
         vuelo.setAerolineaId(
                 request.getAerolineaId()
         );
-
-        /*
-         * El estado NO se modifica desde editar.
-         * El estado queda reservado para borrado lógico.
-         */
 
         programado.setAeropuertoSalidaId(
                 request.getAeropuertoSalidaId()
@@ -288,6 +250,14 @@ public class VueloServiceImpl implements VueloService {
 
         programado.setAeropuertoLlegadaId(
                 request.getAeropuertoLlegadaId()
+        );
+
+        programado.setPuertaEmbarqueSalida(
+                request.getPuertaEmbarqueSalida()
+        );
+
+        programado.setPuertaEmbarqueLlegada(
+                request.getPuertaEmbarqueLlegada()
         );
 
         programado.setFechaSalida(
@@ -306,13 +276,10 @@ public class VueloServiceImpl implements VueloService {
                 request.getHoraLlegada()
         );
 
-        Vuelo vueloActualizado = vueloRepository.save(
-                vuelo
-        );
+        Vuelo vueloActualizado = vueloRepository.save(vuelo);
 
-        VueloProgramado programadoActualizado = vueloProgramadoRepository.save(
-                programado
-        );
+        VueloProgramado programadoActualizado =
+                vueloProgramadoRepository.save(programado);
 
         return mapResponse(
                 vueloActualizado,
@@ -326,17 +293,13 @@ public class VueloServiceImpl implements VueloService {
             Integer id
     ) {
 
-        Vuelo vuelo = findVuelo(
-                id
-        );
+        Vuelo vuelo = findVuelo(id);
 
         vuelo.setEstadoId(
                 obtenerEstadoIdPorNombre(ESTADO_INACTIVO)
         );
 
-        vueloRepository.save(
-                vuelo
-        );
+        vueloRepository.save(vuelo);
     }
 
     private void validarCamposObligatorios(
@@ -346,6 +309,10 @@ public class VueloServiceImpl implements VueloService {
         if (request.getAerolineaId() == null ||
                 request.getAeropuertoSalidaId() == null ||
                 request.getAeropuertoLlegadaId() == null ||
+                request.getPuertaEmbarqueSalida() == null ||
+                request.getPuertaEmbarqueSalida().isBlank() ||
+                request.getPuertaEmbarqueLlegada() == null ||
+                request.getPuertaEmbarqueLlegada().isBlank() ||
                 request.getFechaSalida() == null ||
                 request.getHoraSalida() == null ||
                 request.getFechaLlegada() == null ||
@@ -423,8 +390,40 @@ public class VueloServiceImpl implements VueloService {
                 );
 
         if (!salidaAutorizada || !llegadaAutorizada) {
-
             throw new BusinessException("No se encontraron aeropuertos autorizados para la aerolínea.");
+        }
+    }
+
+    private void validarPuertasEmbarque(
+            VueloRequest request
+    ) {
+
+        Integer estadoActivoId = obtenerEstadoIdPorNombre(
+                ESTADO_ACTIVO
+        );
+
+        boolean puertaSalidaValida =
+                puertaEmbarqueRepository
+                        .existsByAeropuertoIdAndCodigoIgnoreCaseAndEstadoId(
+                                request.getAeropuertoSalidaId(),
+                                request.getPuertaEmbarqueSalida(),
+                                estadoActivoId
+                        );
+
+        if (!puertaSalidaValida) {
+            throw new BusinessException("La puerta de embarque de salida no pertenece al aeropuerto de salida o está inactiva.");
+        }
+
+        boolean puertaLlegadaValida =
+                puertaEmbarqueRepository
+                        .existsByAeropuertoIdAndCodigoIgnoreCaseAndEstadoId(
+                                request.getAeropuertoLlegadaId(),
+                                request.getPuertaEmbarqueLlegada(),
+                                estadoActivoId
+                        );
+
+        if (!puertaLlegadaValida) {
+            throw new BusinessException("La puerta de embarque de llegada no pertenece al aeropuerto de llegada o está inactiva.");
         }
     }
 
@@ -433,7 +432,6 @@ public class VueloServiceImpl implements VueloService {
     ) {
 
         if (request.getAeropuertoSalidaId().equals(request.getAeropuertoLlegadaId())) {
-
             throw new BusinessException("No se puede seleccionar el mismo aeropuerto de salida y llegada.");
         }
 
@@ -448,7 +446,6 @@ public class VueloServiceImpl implements VueloService {
         );
 
         if (!llegada.isAfter(salida)) {
-
             throw new BusinessException("La fecha y hora de llegada debe ser mayor a la fecha y hora de salida.");
         }
 
@@ -456,7 +453,6 @@ public class VueloServiceImpl implements VueloService {
                 .plusHours(5);
 
         if (salida.isBefore(minimoPermitido)) {
-
             throw new BusinessException("Tiempo mínimo para la preparación 5 horas a partir de la hora actual.");
         }
     }
@@ -484,7 +480,6 @@ public class VueloServiceImpl implements VueloService {
                 );
 
         if (duplicados > 0) {
-
             throw new BusinessException("Ya existe un vuelo activo con la misma programación.");
         }
     }
@@ -538,26 +533,11 @@ public class VueloServiceImpl implements VueloService {
         String codigo;
 
         do {
-
             codigo = "VUE-" + String.format("%05d", correlativo);
             correlativo++;
-
         } while (vueloRepository.existsByCodigoVueloIgnoreCase(codigo));
 
         return codigo;
-    }
-
-    private String normalizarCodigo(
-            String codigo
-    ) {
-
-        if (codigo == null) {
-            return null;
-        }
-
-        String value = codigo.trim().toUpperCase();
-
-        return value.isBlank() ? null : value;
     }
 
     private VueloResponse mapResponse(
@@ -583,121 +563,107 @@ public class VueloServiceImpl implements VueloService {
 
         VueloResponse response = new VueloResponse();
 
-        response.setId(
-                vuelo.getId()
-        );
+        response.setId(vuelo.getId());
+        response.setVueloId(vuelo.getId());
+        response.setVueloProgramadoId(programado.getId());
 
-        response.setVueloId(
-                vuelo.getId()
-        );
+        response.setAerolineaId(vuelo.getAerolineaId());
+        response.setCodigoVuelo(vuelo.getCodigoVuelo());
+        response.setEstadoId(vuelo.getEstadoId());
 
-        response.setVueloProgramadoId(
-                programado.getId()
-        );
+        response.setAeropuertoSalidaId(programado.getAeropuertoSalidaId());
+        response.setAeropuertoLlegadaId(programado.getAeropuertoLlegadaId());
 
-        response.setAerolineaId(
-                vuelo.getAerolineaId()
-        );
+        response.setPuertaEmbarqueSalida(programado.getPuertaEmbarqueSalida());
+        response.setPuertaEmbarqueLlegada(programado.getPuertaEmbarqueLlegada());
 
-        response.setCodigoVuelo(
-                vuelo.getCodigoVuelo()
-        );
+        response.setFechaSalida(programado.getFechaSalida());
+        response.setHoraSalida(programado.getHoraSalida());
+        response.setFechaLlegada(programado.getFechaLlegada());
+        response.setHoraLlegada(programado.getHoraLlegada());
 
-        response.setEstadoId(
-                vuelo.getEstadoId()
-        );
-
-        response.setAeropuertoSalidaId(
-                programado.getAeropuertoSalidaId()
-        );
-
-        response.setAeropuertoLlegadaId(
-                programado.getAeropuertoLlegadaId()
-        );
-
-        response.setFechaSalida(
-                programado.getFechaSalida()
-        );
-
-        response.setHoraSalida(
-                programado.getHoraSalida()
-        );
-
-        response.setFechaLlegada(
-                programado.getFechaLlegada()
-        );
-
-        response.setHoraLlegada(
-                programado.getHoraLlegada()
-        );
-
-        response.setCreatedAt(
-                vuelo.getCreatedAt()
-        );
-
-        response.setUpdatedAt(
-                vuelo.getUpdatedAt()
-        );
+        response.setCreatedAt(programado.getCreatedAt());
+        response.setUpdatedAt(programado.getUpdatedAt());
 
         if (vuelo.getAerolineaId() != null) {
-
             aerolineaRepository
                     .findById(vuelo.getAerolineaId())
-                    .ifPresent(aerolinea ->
-                            response.setAerolineaNombre(
-                                    aerolinea.getNombre()
-                            )
+                    .ifPresent(a ->
+                            response.setAerolineaNombre(a.getNombre())
                     );
         }
 
         if (vuelo.getEstadoId() != null) {
-
             statusCatalogRepository
                     .findById(vuelo.getEstadoId())
-                    .map(StatusCatalog::getName)
-                    .ifPresent(response::setEstadoNombre);
+                    .ifPresent(e ->
+                            response.setEstadoNombre(e.getName())
+                    );
         }
 
         if (programado.getAeropuertoSalidaId() != null) {
-
             aeropuertoRepository
                     .findById(programado.getAeropuertoSalidaId())
-                    .ifPresent(aeropuerto -> {
-
-                        response.setAeropuertoSalidaNombre(
-                                aeropuerto.getNombre()
-                        );
-
-                        response.setAeropuertoSalidaCodigoIata(
-                                aeropuerto.getCodigoIata()
-                        );
-
-                        response.setAeropuertoSalidaCodigoIcao(
-                                aeropuerto.getCodigoIcao()
-                        );
+                    .ifPresent(a -> {
+                        response.setAeropuertoSalidaNombre(a.getNombre());
+                        response.setAeropuertoSalidaCodigoIata(a.getCodigoIata());
+                        response.setAeropuertoSalidaCodigoIcao(a.getCodigoIcao());
                     });
         }
 
         if (programado.getAeropuertoLlegadaId() != null) {
-
             aeropuertoRepository
                     .findById(programado.getAeropuertoLlegadaId())
-                    .ifPresent(aeropuerto -> {
-
-                        response.setAeropuertoLlegadaNombre(
-                                aeropuerto.getNombre()
-                        );
-
-                        response.setAeropuertoLlegadaCodigoIata(
-                                aeropuerto.getCodigoIata()
-                        );
-
-                        response.setAeropuertoLlegadaCodigoIcao(
-                                aeropuerto.getCodigoIcao()
-                        );
+                    .ifPresent(a -> {
+                        response.setAeropuertoLlegadaNombre(a.getNombre());
+                        response.setAeropuertoLlegadaCodigoIata(a.getCodigoIata());
+                        response.setAeropuertoLlegadaCodigoIcao(a.getCodigoIcao());
                     });
         }
 
         return response;
+    }
+
+    private void normalizarRequest(
+            VueloRequest request
+    ) {
+
+        request.setPuertaEmbarqueSalida(
+                normalizarPuerta(request.getPuertaEmbarqueSalida())
+        );
+
+        request.setPuertaEmbarqueLlegada(
+                normalizarPuerta(request.getPuertaEmbarqueLlegada())
+        );
+    }
+
+    private String normalizarPuerta(
+            String value
+    ) {
+
+        if (value == null) {
+            return null;
+        }
+
+        String limpio = value.trim();
+
+        if (limpio.isBlank()) {
+            return null;
+        }
+
+        return limpio.toUpperCase(Locale.ROOT);
+    }
+
+    private String normalizarCodigo(
+            String value
+    ) {
+
+        if (value == null) {
+            return null;
+        }
+
+        String limpio = value.trim();
+
+        return limpio.isBlank() ? null : limpio;
     }
 }

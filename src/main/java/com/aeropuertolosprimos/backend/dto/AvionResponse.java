@@ -28,6 +28,8 @@ public class AvionResponse {
 
     private Integer filasConfiguradas;
 
+    private Long cantidadAsientos;
+
     private Integer cantidadVuelos;
 
     private Integer estadoId;

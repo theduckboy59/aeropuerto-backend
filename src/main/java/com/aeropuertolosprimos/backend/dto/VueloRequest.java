@@ -14,6 +14,10 @@ public class VueloRequest {
 
     private Integer aeropuertoLlegadaId;
 
+    private String puertaEmbarqueSalida;
+
+    private String puertaEmbarqueLlegada;
+
     private LocalDate fechaSalida;
 
     private LocalTime horaSalida;

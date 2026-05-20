@@ -25,6 +25,12 @@ public class VueloProgramado {
     @Column(name = "aeropuerto_llegada_id")
     private Integer aeropuertoLlegadaId;
 
+    @Column(name = "puerta_embarque_salida")
+    private String puertaEmbarqueSalida;
+
+    @Column(name = "puerta_embarque_llegada")
+    private String puertaEmbarqueLlegada;
+
     @Column(name = "fecha_salida")
     private LocalDate fechaSalida;
 

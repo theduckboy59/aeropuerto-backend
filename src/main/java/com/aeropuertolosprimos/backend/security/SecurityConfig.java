@@ -102,6 +102,9 @@ public class SecurityConfig {
                         .requestMatchers("/pasajeros/**").permitAll()
                         .requestMatchers("/aeropuertos/**").permitAll()
                         .requestMatchers("/modelo-avion/**").permitAll()
+                        .requestMatchers("/catalogos/**").permitAll()
+                        .requestMatchers("/vuelos/**").permitAll()
+
 
                         .anyRequest().authenticated()
                 )
@@ -130,6 +133,7 @@ public class SecurityConfig {
                 "GET",
                 "POST",
                 "PUT",
+                "PATCH",
                 "DELETE",
                 "OPTIONS"
         ));

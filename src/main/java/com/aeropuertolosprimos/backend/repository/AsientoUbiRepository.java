@@ -7,12 +7,20 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface AsientoUbiRepository extends JpaRepository<AsientoUbi, Integer> {
 
     @Query("""
             SELECT a
             FROM AsientoUbi a
-            WHERE (:avionId IS NULL OR a.avionId = :avionId)
+            WHERE EXISTS (
+                SELECT v.id
+                FROM Avion v
+                WHERE v.id = a.avionId
+                  AND v.estadoId = 1
+            )
+              AND (:avionId IS NULL OR a.avionId = :avionId)
               AND (:claseVueloId IS NULL OR a.claseVueloId = :claseVueloId)
               AND (:tipoAsientoId IS NULL OR a.tipoAsientoId = :tipoAsientoId)
               AND (:nivel IS NULL OR a.nivel = :nivel)
@@ -38,6 +46,8 @@ public interface AsientoUbiRepository extends JpaRepository<AsientoUbi, Integer>
     );
 
     long countByAvionId(Integer avionId);
+
+    List<AsientoUbi> findByAvionId(Integer avionId);
 
     void deleteByAvionId(Integer avionId);
 }

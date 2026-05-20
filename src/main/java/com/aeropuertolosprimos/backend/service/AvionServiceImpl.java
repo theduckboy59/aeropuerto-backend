@@ -7,6 +7,7 @@ import com.aeropuertolosprimos.backend.model.Avion;
 import com.aeropuertolosprimos.backend.model.EstadoAvion;
 import com.aeropuertolosprimos.backend.model.ModeloAvion;
 import com.aeropuertolosprimos.backend.repository.AerolineaRepository;
+import com.aeropuertolosprimos.backend.repository.AsientoUbiRepository;
 import com.aeropuertolosprimos.backend.repository.AvionRepository;
 import com.aeropuertolosprimos.backend.repository.EstadoAvionRepository;
 import com.aeropuertolosprimos.backend.repository.ModeloAvionRepository;
@@ -15,10 +16,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Objects;
-
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -28,8 +28,8 @@ public class AvionServiceImpl implements AvionService {
     private final AerolineaRepository aerolineaRepository;
     private final EstadoAvionRepository estadoAvionRepository;
     private final ModeloAvionRepository modeloAvionRepository;
+    private final AsientoUbiRepository asientoUbiRepository;
     private final EstadoAvionCatalogService estadoAvionCatalogService;
-
     private final AsientoUbiSyncService asientoUbiSyncService;
 
     @Override
@@ -43,18 +43,19 @@ public class AvionServiceImpl implements AvionService {
             Pageable pageable
     ) {
 
+        Integer estadoFiltro = estadoId != null ? estadoId : 1;
+
         return repository.findAll(
-                        AvionSpecification.filters(
-                                q,
-                                aerolineaId,
-                                estadoAvionId,
-                                modeloAvionId,
-                                estadoId,
-                                anio
-                        ),
-                        pageable
-                )
-                .map(this::mapResponse);
+                AvionSpecification.filters(
+                        q,
+                        aerolineaId,
+                        estadoAvionId,
+                        modeloAvionId,
+                        estadoFiltro,
+                        anio
+                ),
+                pageable
+        ).map(this::mapResponse);
     }
 
     @Override
@@ -93,7 +94,7 @@ public class AvionServiceImpl implements AvionService {
         entity.setAnio(request.getAnio());
         entity.setFilasConfiguradas(request.getFilasConfiguradas());
         entity.setCantidadVuelos(0);
-        entity.setEstadoId(request.getEstadoId());
+        entity.setEstadoId(request.getEstadoId() != null ? request.getEstadoId() : 1);
 
         repository.save(entity);
 
@@ -102,9 +103,7 @@ public class AvionServiceImpl implements AvionService {
         return mapResponse(entity);
     }
 
-
     @Override
-
     @Transactional
     public AvionResponse update(
             Integer id,
@@ -116,7 +115,6 @@ public class AvionServiceImpl implements AvionService {
                         new RuntimeException("Avión no encontrado")
                 );
 
-        // Validar si se está intentando modificar filasConfiguradas
         boolean cambiandoFilas = !Objects.equals(
                 entity.getFilasConfiguradas(),
                 request.getFilasConfiguradas()
@@ -129,14 +127,17 @@ public class AvionServiceImpl implements AvionService {
 
         boolean cambiaEstructuraAsientos = cambiandoFilas || cambiandoModelo;
 
-        // Si está cambiando filas, validar que el estado lo permita
         if (cambiandoFilas) {
-            String nombreEstado = estadoAvionCatalogService.getNombreById(entity.getEstadoAvionId());
+            String nombreEstado = estadoAvionCatalogService.getNombreById(
+                    entity.getEstadoAvionId()
+            );
+
             if ("DISPONIBLE".equals(nombreEstado) || "ASIGNADO".equals(nombreEstado)) {
                 throw new RuntimeException(
-                        String.format("No se puede modificar las filas configuradas cuando el avión está en estado %s. " +
-                                        "Solo se permite en MANTENIMIENTO o FUERA_SERVICIO.",
-                                nombreEstado)
+                        String.format(
+                                "No se puede modificar las filas configuradas cuando el avión está en estado %s. Solo se permite en MANTENIMIENTO o FUERA_SERVICIO.",
+                                nombreEstado
+                        )
                 );
             }
         }
@@ -149,8 +150,6 @@ public class AvionServiceImpl implements AvionService {
         validateAerolineaIsActive(aerolinea);
         validateModelIsActive(modeloAvion);
         validateConfiguredRows(request.getFilasConfiguradas(), modeloAvion);
-
-        // validateStructuralChange(entity, request); // COMENTADO
 
         entity.setAerolineaId(request.getAerolineaId());
         entity.setEstadoAvionId(request.getEstadoAvionId());
@@ -176,11 +175,11 @@ public class AvionServiceImpl implements AvionService {
             asientoUbiSyncService.sincronizarPorAvion(entity.getId());
         }
 
-
         return mapResponse(entity);
     }
 
     @Override
+    @Transactional
     public void changeStatus(
             Integer id,
             Integer estadoId
@@ -197,6 +196,7 @@ public class AvionServiceImpl implements AvionService {
     }
 
     @Override
+    @Transactional
     public void changeOperationalStatus(
             Integer id,
             Integer estadoAvionId
@@ -206,8 +206,6 @@ public class AvionServiceImpl implements AvionService {
                 .orElseThrow(() ->
                         new RuntimeException("Avión no encontrado")
                 );
-
-        //validarSiPuedeModificarse(entity, "cambiar el estado operativo");
 
         findEstadoAvion(estadoAvionId);
 
@@ -351,6 +349,7 @@ public class AvionServiceImpl implements AvionService {
                 .numeroSerie(entity.getNumeroSerie())
                 .anio(entity.getAnio())
                 .filasConfiguradas(entity.getFilasConfiguradas())
+                .cantidadAsientos(asientoUbiRepository.countByAvionId(entity.getId()))
                 .cantidadVuelos(entity.getCantidadVuelos())
                 .estadoId(entity.getEstadoId())
                 .build();

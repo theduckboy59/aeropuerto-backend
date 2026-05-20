@@ -8,9 +8,14 @@ import java.util.List;
 public interface PuertaEmbarqueRepository
         extends JpaRepository<PuertaEmbarque, Integer> {
 
-    List<PuertaEmbarque>
-    findByAeropuertoIdAndEstadoId(
+    List<PuertaEmbarque> findByAeropuertoIdAndEstadoId(
             Integer aeropuertoId,
+            Integer estadoId
+    );
+
+    boolean existsByAeropuertoIdAndCodigoIgnoreCaseAndEstadoId(
+            Integer aeropuertoId,
+            String codigo,
             Integer estadoId
     );
 }
