@@ -35,6 +35,8 @@ public class CatalogoController {
     private final TipoAsientoRepository tipoAsientoRepository;
     private final EstadoTripulacionRepository estadoTripulacionRepository;
 
+    private final EstadoVueloRepository estadoVueloRepository;
+
     @GetMapping("/status")
     public List<StatusCatalog> listarStatus() {
         return statusCatalogRepository.findAll();
@@ -118,5 +120,10 @@ public class CatalogoController {
     @GetMapping("/estado-tripulacion")
     public List<EstadoTripulacion> listarEstadoTripulacion() {
         return estadoTripulacionRepository.findAll();
+    }
+
+    @GetMapping("/estado-vuelo")
+    public List<EstadoVuelo> listarEstadoVuelo() {
+        return estadoVueloRepository.findAll();
     }
 }
