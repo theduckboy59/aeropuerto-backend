@@ -240,6 +240,169 @@ public class TripulacionServiceImpl implements TripulacionService {
                 .toList();
     }
 
+    @Override
+    @Transactional
+    public TripulacionResponse actualizar(
+            Integer id,
+            TripulacionRequest request
+    ) {
+
+        if (id == null) {
+            throw new RuntimeException("ID inválido");
+        }
+
+        validarRequestCrear(request);
+
+        Tripulacion tripulacion = tripulacionRepository
+                .findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("Tripulación no encontrada")
+                );
+
+        if (tripulacion.getEstadoTripulacionId() == null ||
+                !tripulacion.getEstadoTripulacionId().equals(ESTADO_TRIPULACION_DISPONIBLE)) {
+
+            throw new RuntimeException("Solo se pueden editar tripulaciones disponibles");
+        }
+
+        Empleado piloto = validarEmpleadoBaseParaActualizar(
+                request.getPilotoId(),
+                request.getAerolineaId(),
+                tripulacion.getId()
+        );
+
+        Empleado copiloto = validarEmpleadoBaseParaActualizar(
+                request.getCopilotoId(),
+                request.getAerolineaId(),
+                tripulacion.getId()
+        );
+
+        Empleado ingeniero = validarEmpleadoBaseParaActualizar(
+                request.getIngenieroId(),
+                request.getAerolineaId(),
+                tripulacion.getId()
+        );
+
+        validarTipoEmpleado(
+                piloto,
+                "PILOTO",
+                "El empleado seleccionado como piloto no tiene tipo PILOTO"
+        );
+
+        validarTipoEmpleado(
+                copiloto,
+                "COPILOTO",
+                "El empleado seleccionado como copiloto no tiene tipo COPILOTO"
+        );
+
+        validarTipoEmpleado(
+                ingeniero,
+                "INGENIERO_VUELO",
+                "El empleado seleccionado como ingeniero no tiene tipo INGENIERO_VUELO"
+        );
+
+        validarLicenciaPiloto(piloto);
+
+        for (Integer cabinaId : request.getTripulantesCabinaIds()) {
+
+            Empleado tripulanteCabina = validarEmpleadoBaseParaActualizar(
+                    cabinaId,
+                    request.getAerolineaId(),
+                    tripulacion.getId()
+            );
+
+            validarTipoEmpleado(
+                    tripulanteCabina,
+                    "CABINA",
+                    "Todos los tripulantes de cabina deben tener tipo CABINA"
+            );
+        }
+
+        List<TripulacionDetalle> detallesActuales = detalleRepository
+                .findByTripulacionId(tripulacion.getId());
+
+        detallesActuales.forEach(detalle ->
+                actualizarDisponibilidad(
+                        detalle.getEmpleadoId(),
+                        true
+                )
+        );
+
+        detalleRepository.deleteAll(detallesActuales);
+        detalleRepository.flush();
+
+        tripulacion.setAerolineaId(request.getAerolineaId());
+        tripulacion = tripulacionRepository.save(tripulacion);
+
+        guardarDetalleYBloquearDisponibilidad(
+                tripulacion.getId(),
+                request.getPilotoId()
+        );
+
+        guardarDetalleYBloquearDisponibilidad(
+                tripulacion.getId(),
+                request.getCopilotoId()
+        );
+
+        guardarDetalleYBloquearDisponibilidad(
+                tripulacion.getId(),
+                request.getIngenieroId()
+        );
+
+        for (Integer cabinaId : request.getTripulantesCabinaIds()) {
+            guardarDetalleYBloquearDisponibilidad(
+                    tripulacion.getId(),
+                    cabinaId
+            );
+        }
+
+        return convertirResponse(tripulacion);
+    }
+
+    private Empleado validarEmpleadoBaseParaActualizar(
+            Integer empleadoId,
+            Integer aerolineaId,
+            Integer tripulacionIdActual
+    ) {
+
+        Empleado empleado = empleadoRepository.findById(empleadoId)
+                .orElseThrow(() ->
+                        new RuntimeException("Empleado no encontrado")
+                );
+
+        if (empleado.getEstadoId() == null ||
+                !empleado.getEstadoId().equals(ESTADO_ACTIVO)) {
+
+            throw new RuntimeException("Empleado inactivo");
+        }
+
+        if (empleado.getAerolineaId() == null ||
+                !empleado.getAerolineaId().equals(aerolineaId)) {
+
+            throw new RuntimeException("Empleado pertenece a otra aerolínea");
+        }
+
+        boolean yaPerteneceAEstaTripulacion = detalleRepository
+                .findByTripulacionId(tripulacionIdActual)
+                .stream()
+                .anyMatch(detalle ->
+                        detalle.getEmpleadoId().equals(empleadoId)
+                );
+
+        if (!yaPerteneceAEstaTripulacion) {
+            disponibilidadRepository
+                    .findByEmpleadoId(empleadoId)
+                    .ifPresent(disponibilidad -> {
+
+                        if (Boolean.FALSE.equals(disponibilidad.getDisponible())) {
+                            throw new RuntimeException("Empleado no disponible");
+                        }
+                    });
+        }
+
+        return empleado;
+    }
+
     private void validarRequestCrear(TripulacionRequest request) {
 
         if (request.getAerolineaId() == null) {

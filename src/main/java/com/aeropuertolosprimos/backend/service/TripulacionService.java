@@ -18,6 +18,11 @@ public interface TripulacionService {
 
     TripulacionResponse crear(TripulacionRequest request);
 
+    TripulacionResponse actualizar(
+            Integer id,
+            TripulacionRequest request
+    );
+
     TripulacionResponse actualizarEstado(
             Integer id,
             Integer estadoTripulacionId

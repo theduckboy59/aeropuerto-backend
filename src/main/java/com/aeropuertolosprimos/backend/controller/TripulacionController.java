@@ -41,6 +41,17 @@ public class TripulacionController {
         return service.crear(request);
     }
 
+    @PutMapping("/{id}")
+    public TripulacionResponse actualizar(
+            @PathVariable Integer id,
+            @RequestBody TripulacionRequest request
+    ) {
+        return service.actualizar(
+                id,
+                request
+        );
+    }
+
     @PutMapping("/{id}/estado/{estadoId}")
     public TripulacionResponse actualizarEstado(
             @PathVariable Integer id,
