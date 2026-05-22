@@ -15,21 +15,14 @@
    ============================================================ */
 
 CREATE TABLE estado_vuelo (
-                              id SERIAL PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                              nombre VARCHAR(100) NULL,
-
-                              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-                              CONSTRAINT uk_estado_vuelo_nombre
-                                  UNIQUE (nombre),
-
-                              CONSTRAINT chk_estado_vuelo_nombre_no_vacio
-                                  CHECK (
-                                      nombre IS NULL
-                                          OR BTRIM(nombre) <> ''
-                                      )
+    CONSTRAINT uk_estado_vuelo_nombre UNIQUE (nombre),
+    CONSTRAINT chk_estado_vuelo_nombre_no_vacio
+        CHECK (BTRIM(nombre) <> '')
 );
 
 INSERT INTO estado_vuelo (id, nombre)
@@ -43,6 +36,10 @@ VALUES
     (7, 'EN_ESCALA'),
     (8, 'FINALIZADO');
 
+SELECT setval(
+               pg_get_serial_sequence('estado_vuelo', 'id'),
+               (SELECT MAX(id) FROM estado_vuelo)
+       );
 
 /* ============================================================
    CATÁLOGO FUTURO: TIPO SEGMENTO VUELO
@@ -53,30 +50,25 @@ VALUES
 CREATE TABLE tipo_segmento_vuelo (
                                      id SERIAL PRIMARY KEY,
 
-                                     nombre VARCHAR(100) NULL,
+                                     nombre VARCHAR(100) NOT NULL,
 
-                                     requiere_cambio_avion BOOLEAN NULL DEFAULT FALSE,
-                                     requiere_nuevo_asiento BOOLEAN NULL DEFAULT FALSE,
-                                     permite_embarque BOOLEAN NULL DEFAULT TRUE,
-                                     detiene_flujo_si_cancela BOOLEAN NULL DEFAULT TRUE,
+                                     requiere_nuevo_asiento BOOLEAN NOT NULL DEFAULT FALSE,
+                                     permite_embarque BOOLEAN NOT NULL DEFAULT FALSE,
+                                     detiene_flujo_si_cancela BOOLEAN NOT NULL DEFAULT TRUE,
 
-                                     estado_id INT NULL,
+                                     estado_id INT NOT NULL DEFAULT 1,
 
                                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                                     CONSTRAINT uk_tipo_segmento_vuelo_nombre
-                                         UNIQUE (nombre),
-
-                                     CONSTRAINT chk_tipo_segmento_vuelo_nombre_no_vacio
-                                         CHECK (
-                                             nombre IS NULL
-                                                 OR BTRIM(nombre) <> ''
-                                             ),
+                                     CONSTRAINT uk_tipo_segmento_vuelo_nombre UNIQUE (nombre),
 
                                      CONSTRAINT fk_tipo_segmento_vuelo_estado
                                          FOREIGN KEY (estado_id)
-                                             REFERENCES status_catalog(id)
+                                             REFERENCES status_catalog(id),
+
+                                     CONSTRAINT chk_tipo_segmento_vuelo_nombre_no_vacio
+                                         CHECK (BTRIM(nombre) <> '')
 );
 
 CREATE INDEX idx_tipo_segmento_vuelo_estado_id
@@ -85,19 +77,20 @@ CREATE INDEX idx_tipo_segmento_vuelo_estado_id
 INSERT INTO tipo_segmento_vuelo (
     id,
     nombre,
-    requiere_cambio_avion,
     requiere_nuevo_asiento,
     permite_embarque,
     detiene_flujo_si_cancela,
     estado_id
 )
 VALUES
-    (1, 'DIRECTO', FALSE, FALSE, TRUE, TRUE, 1),
-    (2, 'ESCALA', FALSE, FALSE, TRUE, TRUE, 1),
-    (3, 'TECNICO', FALSE, FALSE, FALSE, TRUE, 1),
-    (4, 'CAMBIO_AVION', TRUE, TRUE, TRUE, FALSE, 1);
+    (1, 'DIRECTO', FALSE, FALSE, TRUE, 1),
+    (2, 'TECNICO', FALSE, FALSE, TRUE, 1),
+    (3, 'CAMBIO_AVION', TRUE, TRUE, TRUE, 1);
 
-
+SELECT setval(
+               pg_get_serial_sequence('tipo_segmento_vuelo', 'id'),
+               (SELECT MAX(id) FROM tipo_segmento_vuelo)
+       );
 /* ============================================================
    VUELO
    Cabecera del vuelo.

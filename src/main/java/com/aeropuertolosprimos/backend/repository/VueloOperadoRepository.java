@@ -13,4 +13,9 @@ public interface VueloOperadoRepository
     Optional<VueloOperado> findByVueloProgramadoId(Integer vueloProgramadoId);
 
     boolean existsByVueloProgramadoId(Integer vueloProgramadoId);
+
+    boolean existsByVueloProgramadoIdAndIdNot(
+            Integer vueloProgramadoId,
+            Integer id
+    );
 }

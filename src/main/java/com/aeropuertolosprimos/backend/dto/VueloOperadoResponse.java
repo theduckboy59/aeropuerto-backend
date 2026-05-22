@@ -5,6 +5,7 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 
 @Data
 public class VueloOperadoResponse {
@@ -45,25 +46,33 @@ public class VueloOperadoResponse {
 
     private LocalTime horaLlegadaProgramada;
 
-    private Integer avionId;
+    private Integer tipoSegmentoVueloId;
 
-    private String codigoAvion;
+    private String tipoSegmentoVueloNombre;
 
-    private Integer tripulacionId;
+    private Boolean requiereNuevoAsiento;
 
-    private String codigoTripulacion;
+    private Boolean permiteEmbarque;
+
+    private Boolean detieneFlujoSiCancela;
 
     private Integer estadoVueloId;
 
     private String estadoVueloNombre;
 
-    private LocalDate fechaSalidaReal;
+    private Integer cantidadSegmentos;
 
-    private LocalTime horaSalidaReal;
+    private Integer segmentoActualOrden;
 
-    private LocalDate fechaLlegadaReal;
+    private Boolean tuvoEscala;
 
-    private LocalTime horaLlegadaReal;
+    private Boolean puedeEditarDatos;
+
+    private Boolean puedeCancelar;
+
+    private Boolean puedeFinalizar;
+
+    private List<SegmentoOperadoResponse> segmentos;
 
     private LocalDateTime createdAt;
 

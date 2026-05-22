@@ -5,10 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 
-public interface EstadoTripulacionRepository
-        extends JpaRepository<EstadoTripulacion, Integer> {
+public interface EstadoTripulacionRepository extends JpaRepository<EstadoTripulacion, Integer> {
 
-    Optional<EstadoTripulacion> findByNombre(
-            String nombre
-    );
+    Optional<EstadoTripulacion> findByNombreIgnoreCase(String nombre);
 }

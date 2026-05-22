@@ -23,6 +23,11 @@ public interface VueloOperadoService {
 
     VueloOperadoResponse create(VueloOperadoRequest request);
 
+    VueloOperadoResponse update(
+            Integer id,
+            VueloOperadoRequest request
+    );
+
     VueloOperadoResponse cambiarEstado(
             Integer id,
             Integer estadoVueloId

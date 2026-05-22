@@ -1,14 +1,16 @@
 package com.aeropuertolosprimos.backend.specification;
 
+import com.aeropuertolosprimos.backend.model.SegmentoOperado;
 import com.aeropuertolosprimos.backend.model.VueloOperado;
-import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
 
 public class VueloOperadoSpecification {
+
+    private VueloOperadoSpecification() {
+    }
 
     public static Specification<VueloOperado> filters(
             Integer vueloProgramadoId,
@@ -20,46 +22,75 @@ public class VueloOperadoSpecification {
     ) {
 
         return (root, query, cb) -> {
-
-            List<Predicate> predicates = new ArrayList<>();
+            var predicates = cb.conjunction();
 
             if (vueloProgramadoId != null) {
-                predicates.add(
+                predicates = cb.and(
+                        predicates,
                         cb.equal(root.get("vueloProgramadoId"), vueloProgramadoId)
                 );
             }
 
-            if (avionId != null) {
-                predicates.add(
-                        cb.equal(root.get("avionId"), avionId)
-                );
-            }
-
-            if (tripulacionId != null) {
-                predicates.add(
-                        cb.equal(root.get("tripulacionId"), tripulacionId)
-                );
-            }
-
             if (estadoVueloId != null) {
-                predicates.add(
+                predicates = cb.and(
+                        predicates,
                         cb.equal(root.get("estadoVueloId"), estadoVueloId)
                 );
             }
 
+            if (avionId != null) {
+                Subquery<Integer> sub = query.subquery(Integer.class);
+                var segmento = sub.from(SegmentoOperado.class);
+
+                sub.select(segmento.get("id"))
+                        .where(
+                                cb.equal(segmento.get("vueloOperadoId"), root.get("id")),
+                                cb.equal(segmento.get("avionId"), avionId)
+                        );
+
+                predicates = cb.and(predicates, cb.exists(sub));
+            }
+
+            if (tripulacionId != null) {
+                Subquery<Integer> sub = query.subquery(Integer.class);
+                var segmento = sub.from(SegmentoOperado.class);
+
+                sub.select(segmento.get("id"))
+                        .where(
+                                cb.equal(segmento.get("vueloOperadoId"), root.get("id")),
+                                cb.equal(segmento.get("tripulacionId"), tripulacionId)
+                        );
+
+                predicates = cb.and(predicates, cb.exists(sub));
+            }
+
             if (fechaSalidaReal != null) {
-                predicates.add(
-                        cb.equal(root.get("fechaSalidaReal"), fechaSalidaReal)
-                );
+                Subquery<Integer> sub = query.subquery(Integer.class);
+                var segmento = sub.from(SegmentoOperado.class);
+
+                sub.select(segmento.get("id"))
+                        .where(
+                                cb.equal(segmento.get("vueloOperadoId"), root.get("id")),
+                                cb.equal(segmento.get("fechaSalidaReal"), fechaSalidaReal)
+                        );
+
+                predicates = cb.and(predicates, cb.exists(sub));
             }
 
             if (fechaLlegadaReal != null) {
-                predicates.add(
-                        cb.equal(root.get("fechaLlegadaReal"), fechaLlegadaReal)
-                );
+                Subquery<Integer> sub = query.subquery(Integer.class);
+                var segmento = sub.from(SegmentoOperado.class);
+
+                sub.select(segmento.get("id"))
+                        .where(
+                                cb.equal(segmento.get("vueloOperadoId"), root.get("id")),
+                                cb.equal(segmento.get("fechaLlegadaReal"), fechaLlegadaReal)
+                        );
+
+                predicates = cb.and(predicates, cb.exists(sub));
             }
 
-            return cb.and(predicates.toArray(new Predicate[0]));
+            return predicates;
         };
     }
 }

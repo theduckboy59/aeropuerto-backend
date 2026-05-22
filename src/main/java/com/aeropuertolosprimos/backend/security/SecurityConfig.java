@@ -105,6 +105,7 @@ public class SecurityConfig {
                         .requestMatchers("/catalogos/**").permitAll()
                         .requestMatchers("/vuelos/**").permitAll()
                         .requestMatchers("/vuelos-operados/**").permitAll()
+                        .requestMatchers("/asientos-vuelo/**").permitAll()
 
 
                         .anyRequest().authenticated()

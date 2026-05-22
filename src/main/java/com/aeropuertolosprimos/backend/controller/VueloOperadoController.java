@@ -43,7 +43,6 @@ public class VueloOperadoController {
     public VueloOperadoResponse findById(
             @PathVariable Integer id
     ) {
-
         return service.findById(id);
     }
 
@@ -51,8 +50,15 @@ public class VueloOperadoController {
     public VueloOperadoResponse create(
             @RequestBody VueloOperadoRequest request
     ) {
-
         return service.create(request);
+    }
+
+    @PutMapping("/{id}")
+    public VueloOperadoResponse update(
+            @PathVariable Integer id,
+            @RequestBody VueloOperadoRequest request
+    ) {
+        return service.update(id, request);
     }
 
     @PatchMapping("/{id}/estado")
@@ -60,18 +66,13 @@ public class VueloOperadoController {
             @PathVariable Integer id,
             @RequestParam Integer estadoVueloId
     ) {
-
-        return service.cambiarEstado(
-                id,
-                estadoVueloId
-        );
+        return service.cambiarEstado(id, estadoVueloId);
     }
 
     @DeleteMapping("/{id}")
     public void delete(
             @PathVariable Integer id
     ) {
-
         service.delete(id);
     }
 }

@@ -42,6 +42,8 @@ public class VueloServiceImpl implements VueloService {
     private final DestinoAutorizadoRepository destinoAutorizadoRepository;
     private final PuertaEmbarqueRepository puertaEmbarqueRepository;
 
+    private final AsientoVueloService asientoVueloService;
+
     @Override
     public Page<VueloResponse> findAll(
             String q,

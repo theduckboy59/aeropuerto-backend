@@ -1,7 +1,7 @@
 /* ============================================================
-   V11 - ASIENTO VUELO
+   V11 - ASIENTO VUELO POR SEGMENTO OPERADO
    Requiere tablas existentes:
-   - vuelo_operado
+   - segmento_operado
    - asiento_ubi
    ============================================================ */
 
@@ -13,7 +13,7 @@
 CREATE TABLE estado_asiento (
                                 id SERIAL PRIMARY KEY,
 
-                                nombre VARCHAR(100) NULL,
+                                nombre VARCHAR(100) NOT NULL,
 
                                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -22,10 +22,7 @@ CREATE TABLE estado_asiento (
                                     UNIQUE (nombre),
 
                                 CONSTRAINT chk_estado_asiento_nombre_no_vacio
-                                    CHECK (
-                                        nombre IS NULL
-                                            OR BTRIM(nombre) <> ''
-                                        )
+                                    CHECK (BTRIM(nombre) <> '')
 );
 
 INSERT INTO estado_asiento (id, nombre)
@@ -35,27 +32,32 @@ VALUES
     (3, 'OCUPADO'),
     (4, 'BLOQUEADO');
 
+SELECT setval(
+               pg_get_serial_sequence('estado_asiento', 'id'),
+               (SELECT MAX(id) FROM estado_asiento)
+       );
+
 
 /* ============================================================
    ASIENTO VUELO
-   Disponibilidad de un asiento físico en un vuelo operado.
+   Disponibilidad de asiento físico por segmento operado.
    ============================================================ */
 
 CREATE TABLE asiento_vuelo (
                                id SERIAL PRIMARY KEY,
 
-                               vuelo_operado_id INT NULL,
+                               segmento_operado_id INT NOT NULL,
 
-                               asiento_ubi_id INT NULL,
+                               asiento_ubi_id INT NOT NULL,
 
-                               estado_asiento_id INT NULL,
+                               estado_asiento_id INT NOT NULL DEFAULT 1,
 
                                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-                               CONSTRAINT fk_asiento_vuelo_vuelo_operado
-                                   FOREIGN KEY (vuelo_operado_id)
-                                       REFERENCES vuelo_operado(id),
+                               CONSTRAINT fk_asiento_vuelo_segmento_operado
+                                   FOREIGN KEY (segmento_operado_id)
+                                       REFERENCES segmento_operado(id),
 
                                CONSTRAINT fk_asiento_vuelo_asiento_ubi
                                    FOREIGN KEY (asiento_ubi_id)
@@ -65,43 +67,15 @@ CREATE TABLE asiento_vuelo (
                                    FOREIGN KEY (estado_asiento_id)
                                        REFERENCES estado_asiento(id),
 
-                               CONSTRAINT uk_asiento_vuelo_operado_asiento
-                                   UNIQUE (vuelo_operado_id, asiento_ubi_id)
+                               CONSTRAINT uk_asiento_vuelo_segmento_asiento
+                                   UNIQUE (segmento_operado_id, asiento_ubi_id)
 );
 
-CREATE INDEX idx_asiento_vuelo_vuelo_operado_id
-    ON asiento_vuelo(vuelo_operado_id);
+CREATE INDEX idx_asiento_vuelo_segmento_operado_id
+    ON asiento_vuelo(segmento_operado_id);
 
 CREATE INDEX idx_asiento_vuelo_asiento_ubi_id
     ON asiento_vuelo(asiento_ubi_id);
 
 CREATE INDEX idx_asiento_vuelo_estado_asiento_id
     ON asiento_vuelo(estado_asiento_id);
-
-
-/* ============================================================
-   INSERT INICIAL SEGURO
-   Genera disponibilidad para vuelos_operados existentes.
-   Solo toma asientos vendibles:
-   - asiento_ubi.clase_vuelo_id IS NOT NULL
-   ============================================================ */
-
-INSERT INTO asiento_vuelo (
-    vuelo_operado_id,
-    asiento_ubi_id,
-    estado_asiento_id
-)
-SELECT
-    vo.id,
-    au.id,
-    1
-FROM vuelo_operado vo
-         JOIN asiento_ubi au
-              ON au.avion_id = vo.avion_id
-WHERE au.clase_vuelo_id IS NOT NULL
-  AND NOT EXISTS (
-    SELECT 1
-    FROM asiento_vuelo avu
-    WHERE avu.vuelo_operado_id = vo.id
-      AND avu.asiento_ubi_id = au.id
-);

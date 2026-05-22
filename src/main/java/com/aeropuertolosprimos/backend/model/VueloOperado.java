@@ -3,9 +3,7 @@ package com.aeropuertolosprimos.backend.model;
 import jakarta.persistence.*;
 import lombok.Data;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 
 @Data
 @Entity
@@ -19,26 +17,20 @@ public class VueloOperado {
     @Column(name = "vuelo_programado_id")
     private Integer vueloProgramadoId;
 
-    @Column(name = "avion_id")
-    private Integer avionId;
-
-    @Column(name = "tripulacion_id")
-    private Integer tripulacionId;
+    @Column(name = "tipo_segmento_vuelo_id")
+    private Integer tipoSegmentoVueloId;
 
     @Column(name = "estado_vuelo_id")
     private Integer estadoVueloId;
 
-    @Column(name = "fecha_salida_real")
-    private LocalDate fechaSalidaReal;
+    @Column(name = "cantidad_segmentos")
+    private Integer cantidadSegmentos;
 
-    @Column(name = "hora_salida_real")
-    private LocalTime horaSalidaReal;
+    @Column(name = "segmento_actual_orden")
+    private Integer segmentoActualOrden;
 
-    @Column(name = "fecha_llegada_real")
-    private LocalDate fechaLlegadaReal;
-
-    @Column(name = "hora_llegada_real")
-    private LocalTime horaLlegadaReal;
+    @Column(name = "tuvo_escala")
+    private Boolean tuvoEscala;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -50,6 +42,26 @@ public class VueloOperado {
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
+
+        if (this.tipoSegmentoVueloId == null) {
+            this.tipoSegmentoVueloId = 1;
+        }
+
+        if (this.estadoVueloId == null) {
+            this.estadoVueloId = 1;
+        }
+
+        if (this.cantidadSegmentos == null) {
+            this.cantidadSegmentos = 1;
+        }
+
+        if (this.segmentoActualOrden == null) {
+            this.segmentoActualOrden = 1;
+        }
+
+        if (this.tuvoEscala == null) {
+            this.tuvoEscala = false;
+        }
     }
 
     @PreUpdate
