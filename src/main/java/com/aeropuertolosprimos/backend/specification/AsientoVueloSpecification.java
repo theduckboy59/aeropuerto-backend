@@ -56,95 +56,77 @@ public class AsientoVueloSpecification {
                 );
             }
 
-            if (claseVueloId != null) {
+            if (
+                    claseVueloId != null ||
+                            tipoAsientoId != null ||
+                            nivel != null ||
+                            fila != null ||
+                            columna != null ||
+                            numeroAsiento != null
+            ) {
                 Subquery<Integer> sub = query.subquery(Integer.class);
                 var asiento = sub.from(AsientoUbi.class);
 
-                sub.select(asiento.get("id"))
-                        .where(
-                                cb.equal(asiento.get("id"), root.get("asientoUbiId")),
-                                cb.equal(asiento.get("claseVueloId"), claseVueloId)
-                        );
+                var asientoPredicates = cb.conjunction();
 
-                predicates = cb.and(
-                        predicates,
-                        cb.exists(sub)
+                asientoPredicates = cb.and(
+                        asientoPredicates,
+                        cb.equal(
+                                asiento.get("codigoAsientoSistema"),
+                                root.get("codigoAsientoSistema")
+                        )
                 );
-            }
 
-            if (tipoAsientoId != null) {
-                Subquery<Integer> sub = query.subquery(Integer.class);
-                var asiento = sub.from(AsientoUbi.class);
+                if (claseVueloId != null) {
+                    asientoPredicates = cb.and(
+                            asientoPredicates,
+                            cb.equal(asiento.get("claseVueloId"), claseVueloId)
+                    );
+                }
 
-                sub.select(asiento.get("id"))
-                        .where(
-                                cb.equal(asiento.get("id"), root.get("asientoUbiId")),
-                                cb.equal(asiento.get("tipoAsientoId"), tipoAsientoId)
-                        );
+                if (tipoAsientoId != null) {
+                    asientoPredicates = cb.and(
+                            asientoPredicates,
+                            cb.equal(asiento.get("tipoAsientoId"), tipoAsientoId)
+                    );
+                }
 
-                predicates = cb.and(
-                        predicates,
-                        cb.exists(sub)
-                );
-            }
+                if (nivel != null) {
+                    asientoPredicates = cb.and(
+                            asientoPredicates,
+                            cb.equal(asiento.get("nivel"), nivel)
+                    );
+                }
 
-            if (nivel != null) {
-                Subquery<Integer> sub = query.subquery(Integer.class);
-                var asiento = sub.from(AsientoUbi.class);
+                if (fila != null) {
+                    asientoPredicates = cb.and(
+                            asientoPredicates,
+                            cb.equal(asiento.get("fila"), fila)
+                    );
+                }
 
-                sub.select(asiento.get("id"))
-                        .where(
-                                cb.equal(asiento.get("id"), root.get("asientoUbiId")),
-                                cb.equal(asiento.get("nivel"), nivel)
-                        );
+                if (columna != null && !columna.isBlank()) {
+                    asientoPredicates = cb.and(
+                            asientoPredicates,
+                            cb.equal(
+                                    cb.upper(asiento.get("columna")),
+                                    columna.trim().toUpperCase()
+                            )
+                    );
+                }
 
-                predicates = cb.and(
-                        predicates,
-                        cb.exists(sub)
-                );
-            }
-
-            if (fila != null) {
-                Subquery<Integer> sub = query.subquery(Integer.class);
-                var asiento = sub.from(AsientoUbi.class);
-
-                sub.select(asiento.get("id"))
-                        .where(
-                                cb.equal(asiento.get("id"), root.get("asientoUbiId")),
-                                cb.equal(asiento.get("fila"), fila)
-                        );
-
-                predicates = cb.and(
-                        predicates,
-                        cb.exists(sub)
-                );
-            }
-
-            if (columna != null && !columna.isBlank()) {
-                Subquery<Integer> sub = query.subquery(Integer.class);
-                var asiento = sub.from(AsientoUbi.class);
+                if (numeroAsiento != null && !numeroAsiento.isBlank()) {
+                    asientoPredicates = cb.and(
+                            asientoPredicates,
+                            cb.equal(
+                                    cb.upper(asiento.get("numeroAsiento")),
+                                    numeroAsiento.trim().toUpperCase()
+                            )
+                    );
+                }
 
                 sub.select(asiento.get("id"))
-                        .where(
-                                cb.equal(asiento.get("id"), root.get("asientoUbiId")),
-                                cb.equal(cb.upper(asiento.get("columna")), columna.toUpperCase())
-                        );
-
-                predicates = cb.and(
-                        predicates,
-                        cb.exists(sub)
-                );
-            }
-
-            if (numeroAsiento != null && !numeroAsiento.isBlank()) {
-                Subquery<Integer> sub = query.subquery(Integer.class);
-                var asiento = sub.from(AsientoUbi.class);
-
-                sub.select(asiento.get("id"))
-                        .where(
-                                cb.equal(asiento.get("id"), root.get("asientoUbiId")),
-                                cb.equal(cb.upper(asiento.get("numeroAsiento")), numeroAsiento.toUpperCase())
-                        );
+                        .where(asientoPredicates);
 
                 predicates = cb.and(
                         predicates,

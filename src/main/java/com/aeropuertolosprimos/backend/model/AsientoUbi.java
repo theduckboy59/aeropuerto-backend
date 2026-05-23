@@ -32,6 +32,9 @@ public class AsientoUbi {
     @Column(name = "numero_asiento")
     private String numeroAsiento;
 
+    @Column(name = "codigo_asiento_sistema")
+    private String codigoAsientoSistema;
+
     private Integer bloque;
 
     private String lado;

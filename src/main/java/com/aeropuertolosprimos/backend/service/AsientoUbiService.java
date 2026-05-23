@@ -22,12 +22,6 @@ public class AsientoUbiService {
     private final ClaseVueloRepository claseVueloRepository;
     private final TipoAsientoRepository tipoAsientoRepository;
 
-    /*
-     * Servicio solo de consulta.
-     *
-     * asiento_ubi NO tiene CRUD manual.
-     * La generación y sincronización se hace automáticamente desde AsientoUbiSyncService.
-     */
     public Page<AsientoUbiResponse> buscarConFiltros(
             Integer avionId,
             Integer claseVueloId,
@@ -125,6 +119,7 @@ public class AsientoUbiService {
         response.setFila(asiento.getFila());
         response.setColumna(asiento.getColumna());
         response.setNumeroAsiento(asiento.getNumeroAsiento());
+        response.setCodigoAsientoSistema(asiento.getCodigoAsientoSistema());
         response.setBloque(asiento.getBloque());
         response.setLado(asiento.getLado());
         response.setCreatedAt(asiento.getCreatedAt());

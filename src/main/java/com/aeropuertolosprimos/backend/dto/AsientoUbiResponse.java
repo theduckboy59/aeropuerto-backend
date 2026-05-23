@@ -29,6 +29,8 @@ public class AsientoUbiResponse {
 
     private String numeroAsiento;
 
+    private String codigoAsientoSistema;
+
     private Integer bloque;
 
     private String lado;

@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface AsientoUbiRepository extends JpaRepository<AsientoUbi, Integer> {
 
@@ -49,5 +50,9 @@ public interface AsientoUbiRepository extends JpaRepository<AsientoUbi, Integer>
 
     List<AsientoUbi> findByAvionId(Integer avionId);
 
-    void deleteByAvionId(Integer avionId);
+    List<AsientoUbi> findByAvionIdIsNullOrderByIdAsc();
+
+    Optional<AsientoUbi> findFirstByCodigoAsientoSistemaOrderByIdAsc(
+            String codigoAsientoSistema
+    );
 }

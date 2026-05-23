@@ -7,6 +7,7 @@ import com.aeropuertolosprimos.backend.model.ConfigClaseFilasAvion;
 import com.aeropuertolosprimos.backend.model.ModeloAvion;
 import com.aeropuertolosprimos.backend.model.TipoAsiento;
 import com.aeropuertolosprimos.backend.repository.AsientoUbiRepository;
+import com.aeropuertolosprimos.backend.repository.AsientoVueloRepository;
 import com.aeropuertolosprimos.backend.repository.AvionRepository;
 import com.aeropuertolosprimos.backend.repository.ClaseVueloRepository;
 import com.aeropuertolosprimos.backend.repository.ConfigClaseFilasAvionRepository;
@@ -17,9 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.text.Normalizer;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +31,7 @@ public class AsientoUbiSyncService {
     private static final String MEDIO = "MEDIO";
 
     private final AsientoUbiRepository asientoUbiRepository;
+    private final AsientoVueloRepository asientoVueloRepository;
     private final AvionRepository avionRepository;
     private final ModeloAvionRepository modeloAvionRepository;
     private final ConfigClaseFilasAvionRepository configClaseFilasAvionRepository;
@@ -39,15 +39,8 @@ public class AsientoUbiSyncService {
     private final ClaseVueloRepository claseVueloRepository;
     private final EstadoAvionCatalogService estadoAvionCatalogService;
 
-    /*
-     * Servicio interno de sincronización.
-     *
-     * NO se expone como CRUD al frontend.
-     *
-     * Se llama automáticamente desde:
-     * - AvionServiceImpl: al crear avión o cambiar estructura.
-     * - ConfigClaseFilasAvionService: al crear/editar/eliminar/reiniciar rangos.
-     */
+
+
     @Transactional
     public GenerarAsientosResponse sincronizarPorAvion(
             Integer avionId
@@ -95,14 +88,7 @@ public class AsientoUbiSyncService {
 
         long asientosAnteriores = asientoUbiRepository.countByAvionId(avionId);
 
-        /*
-         * Estrategia simple y segura:
-         * asiento_ubi es dato derivado, entonces se borra y se genera otra vez.
-         */
-        asientoUbiRepository.deleteByAvionId(avionId);
-        asientoUbiRepository.flush();
-
-        List<AsientoUbi> asientos = generarAsientosFisicos(
+        List<AsientoUbi> asientosDeseados = generarAsientosFisicos(
                 avion,
                 modelo,
                 bloques,
@@ -112,7 +98,14 @@ public class AsientoUbiSyncService {
                 tipoMedioId
         );
 
-        asientoUbiRepository.saveAll(asientos);
+        ResultadoSincronizacion resultado = sincronizarSinBorrar(
+                avion,
+                asientosDeseados
+        );
+
+        asientoUbiRepository.flush();
+
+        long asientosActuales = asientoUbiRepository.countByAvionId(avionId);
 
         GenerarAsientosResponse response = new GenerarAsientosResponse();
 
@@ -121,16 +114,136 @@ public class AsientoUbiSyncService {
         response.setNiveles(modelo.getNiveles());
         response.setFilasConfiguradas(avion.getFilasConfiguradas());
         response.setTotalColumnas(calcularTotalColumnas(bloques));
-        response.setTotalAsientosGenerados(asientos.size());
+        response.setTotalAsientosGenerados((int) asientosActuales);
         response.setMensaje(
-                "Asientos sincronizados correctamente. Registros anteriores eliminados: "
+                "Asientos sincronizados correctamente. Registros anteriores activos: "
                         + asientosAnteriores
-                        + ". Registros actuales: "
-                        + asientos.size()
+                        + ". Actualizados: "
+                        + resultado.actualizados
+                        + ". Reutilizados: "
+                        + resultado.reutilizados
+                        + ". Creados: "
+                        + resultado.creados
+                        + ". Limpiados: "
+                        + resultado.limpiados
+                        + ". Registros actuales activos: "
+                        + asientosActuales
                         + "."
         );
 
         return response;
+    }
+
+    private ResultadoSincronizacion sincronizarSinBorrar(
+            Avion avion,
+            List<AsientoUbi> asientosDeseados
+    ) {
+
+        List<AsientoUbi> actuales = asientoUbiRepository.findByAvionId(
+                avion.getId()
+        );
+
+        Map<String, AsientoUbi> actualesPorClave = new HashMap<>();
+
+        for (AsientoUbi actual : actuales) {
+            String clave = claveAsiento(actual);
+
+            if (clave != null) {
+                actualesPorClave.put(clave, actual);
+            }
+        }
+
+        List<AsientoUbi> reutilizables = asientoUbiRepository
+                .findByAvionIdIsNullOrderByIdAsc();
+
+        int indiceReutilizable = 0;
+
+        Set<String> clavesDeseadas = new HashSet<>();
+
+        List<AsientoUbi> guardar = new ArrayList<>();
+
+        ResultadoSincronizacion resultado = new ResultadoSincronizacion();
+
+        for (AsientoUbi deseado : asientosDeseados) {
+
+            String clave = claveAsiento(deseado);
+
+            if (clave == null) {
+                continue;
+            }
+
+            clavesDeseadas.add(clave);
+
+            AsientoUbi existente = actualesPorClave.get(clave);
+
+            if (existente != null) {
+
+                copiarDatosAsiento(
+                        existente,
+                        deseado
+                );
+
+                guardar.add(existente);
+                resultado.actualizados++;
+
+                continue;
+            }
+
+            if (indiceReutilizable < reutilizables.size()) {
+
+                AsientoUbi reutilizado = reutilizables.get(
+                        indiceReutilizable
+                );
+
+                indiceReutilizable++;
+
+                copiarDatosAsiento(
+                        reutilizado,
+                        deseado
+                );
+
+                guardar.add(reutilizado);
+                resultado.reutilizados++;
+
+                continue;
+            }
+
+            guardar.add(deseado);
+            resultado.creados++;
+        }
+
+        for (AsientoUbi actual : actuales) {
+
+            String clave = claveAsiento(actual);
+
+            if (clave == null) {
+                continue;
+            }
+
+            if (!clavesDeseadas.contains(clave)) {
+
+                if (actual.getCodigoAsientoSistema() != null &&
+                        !actual.getCodigoAsientoSistema().isBlank()) {
+
+                    asientoVueloRepository.limpiarPorCodigoAsientoSistema(
+                            actual.getCodigoAsientoSistema()
+                    );
+                }
+
+                limpiarAsientoUbi(
+                        actual
+                );
+
+                guardar.add(actual);
+                resultado.limpiados++;
+            }
+        }
+
+        asientoUbiRepository.saveAll(
+                guardar
+        );
+
+        return resultado;
     }
 
     private List<AsientoUbi> generarAsientosFisicos(
@@ -164,12 +277,6 @@ public class AsientoUbiSyncService {
 
                         asiento.setAvionId(avion.getId());
 
-                        /*
-                         * Si la fila no tiene rango activo:
-                         * claseVueloId queda null.
-                         *
-                         * Eso representa asiento INHABILITADO automático.
-                         */
                         asiento.setClaseVueloId(
                                 clasePorFila[fila]
                         );
@@ -188,6 +295,16 @@ public class AsientoUbiSyncService {
                         asiento.setFila(fila);
                         asiento.setColumna(columna);
                         asiento.setNumeroAsiento(fila + columna);
+
+                        asiento.setCodigoAsientoSistema(
+                                generarCodigoAsientoSistema(
+                                        avion,
+                                        nivel,
+                                        fila,
+                                        columna
+                                )
+                        );
+
                         asiento.setBloque(bloque);
                         asiento.setLado(
                                 obtenerLado(
@@ -205,6 +322,75 @@ public class AsientoUbiSyncService {
         }
 
         return asientos;
+    }
+
+    private void copiarDatosAsiento(
+            AsientoUbi destino,
+            AsientoUbi origen
+    ) {
+
+        destino.setAvionId(origen.getAvionId());
+        destino.setClaseVueloId(origen.getClaseVueloId());
+        destino.setTipoAsientoId(origen.getTipoAsientoId());
+        destino.setNivel(origen.getNivel());
+        destino.setFila(origen.getFila());
+        destino.setColumna(origen.getColumna());
+        destino.setNumeroAsiento(origen.getNumeroAsiento());
+        destino.setCodigoAsientoSistema(origen.getCodigoAsientoSistema());
+        destino.setBloque(origen.getBloque());
+        destino.setLado(origen.getLado());
+    }
+
+    private void limpiarAsientoUbi(
+            AsientoUbi asiento
+    ) {
+
+        asiento.setAvionId(null);
+        asiento.setClaseVueloId(null);
+        asiento.setTipoAsientoId(null);
+        asiento.setNivel(null);
+        asiento.setFila(null);
+        asiento.setColumna(null);
+        asiento.setNumeroAsiento(null);
+        asiento.setCodigoAsientoSistema(null);
+        asiento.setBloque(null);
+        asiento.setLado(null);
+    }
+
+    private String claveAsiento(
+            AsientoUbi asiento
+    ) {
+
+        if (
+                asiento.getNivel() == null ||
+                        asiento.getFila() == null ||
+                        asiento.getColumna() == null
+        ) {
+            return null;
+        }
+
+        return asiento.getNivel()
+                + "|"
+                + asiento.getFila()
+                + "|"
+                + asiento.getColumna().trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String generarCodigoAsientoSistema(
+            Avion avion,
+            Integer nivel,
+            Integer fila,
+            String columna
+    ) {
+
+        return "AV"
+                + avion.getId()
+                + "-N"
+                + nivel
+                + "-F"
+                + fila
+                + "-"
+                + columna.trim().toUpperCase(Locale.ROOT);
     }
 
     private void validarAvionParaSincronizar(
@@ -319,10 +505,6 @@ public class AsientoUbiSyncService {
             }
         }
 
-        /*
-         * No se valida que todas las filas tengan clase.
-         * Las filas sin clase quedan null.
-         */
         return clasePorFila;
     }
 
@@ -482,5 +664,16 @@ public class AsientoUbiSyncService {
                 .replaceAll("\\p{M}", "")
                 .trim()
                 .toUpperCase(Locale.ROOT);
+    }
+
+    private static class ResultadoSincronizacion {
+
+        private int actualizados;
+
+        private int reutilizados;
+
+        private int creados;
+
+        private int limpiados;
     }
 }

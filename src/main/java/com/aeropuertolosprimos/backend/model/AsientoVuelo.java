@@ -17,8 +17,8 @@ public class AsientoVuelo {
     @Column(name = "segmento_operado_id")
     private Integer segmentoOperadoId;
 
-    @Column(name = "asiento_ubi_id")
-    private Integer asientoUbiId;
+    @Column(name = "codigo_asiento_sistema")
+    private String codigoAsientoSistema;
 
     @Column(name = "estado_asiento_id")
     private Integer estadoAsientoId;

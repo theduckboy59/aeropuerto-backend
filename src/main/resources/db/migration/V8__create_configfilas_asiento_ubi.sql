@@ -65,9 +65,11 @@ CREATE TABLE asiento_ubi (
 
                              numero_asiento VARCHAR(10) NULL,
 
-                             bloque INT,
+                             codigo_asiento_sistema VARCHAR(80) NULL,
 
-                             lado VARCHAR(10),
+                             bloque INT NULL,
+
+                             lado VARCHAR(10) NULL,
 
                              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
@@ -107,3 +109,6 @@ CREATE INDEX idx_asiento_ubi_clase
 
 CREATE INDEX idx_asiento_ubi_tipo_asiento
     ON asiento_ubi(tipo_asiento_id);
+
+CREATE INDEX idx_asiento_ubi_codigo_asiento_sistema
+    ON asiento_ubi(codigo_asiento_sistema);

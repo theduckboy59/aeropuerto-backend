@@ -29,7 +29,6 @@ public class AsientoVueloServiceImpl implements AsientoVueloService {
     private final AsientoUbiRepository asientoUbiRepository;
 
     private final SegmentoOperadoRepository segmentoOperadoRepository;
-    private final SegmentoVueloRepository segmentoVueloRepository;
     private final VueloOperadoRepository vueloOperadoRepository;
     private final VueloProgramadoRepository vueloProgramadoRepository;
     private final VueloRepository vueloRepository;
@@ -147,10 +146,15 @@ public class AsientoVueloServiceImpl implements AsientoVueloService {
                 continue;
             }
 
+            if (asiento.getCodigoAsientoSistema() == null ||
+                    asiento.getCodigoAsientoSistema().isBlank()) {
+                continue;
+            }
+
             boolean existe = asientoVueloRepository
-                    .existsBySegmentoOperadoIdAndAsientoUbiId(
+                    .existsBySegmentoOperadoIdAndCodigoAsientoSistema(
                             segmentoOperado.getId(),
-                            asiento.getId()
+                            asiento.getCodigoAsientoSistema()
                     );
 
             if (existe) {
@@ -163,8 +167,8 @@ public class AsientoVueloServiceImpl implements AsientoVueloService {
                     segmentoOperado.getId()
             );
 
-            asientoVuelo.setAsientoUbiId(
-                    asiento.getId()
+            asientoVuelo.setCodigoAsientoSistema(
+                    asiento.getCodigoAsientoSistema()
             );
 
             asientoVuelo.setEstadoAsientoId(
@@ -273,8 +277,8 @@ public class AsientoVueloServiceImpl implements AsientoVueloService {
                 asientoVuelo.getSegmentoOperadoId()
         );
 
-        response.setAsientoUbiId(
-                asientoVuelo.getAsientoUbiId()
+        response.setCodigoAsientoSistema(
+                asientoVuelo.getCodigoAsientoSistema()
         );
 
         response.setEstadoAsientoId(
@@ -294,7 +298,7 @@ public class AsientoVueloServiceImpl implements AsientoVueloService {
                 asientoVuelo
         );
 
-        mapAsientoUbi(
+        mapAsientoUbiPorCodigo(
                 response,
                 asientoVuelo
         );
@@ -364,17 +368,20 @@ public class AsientoVueloServiceImpl implements AsientoVueloService {
                 });
     }
 
-    private void mapAsientoUbi(
+    private void mapAsientoUbiPorCodigo(
             AsientoVueloResponse response,
             AsientoVuelo asientoVuelo
     ) {
 
-        if (asientoVuelo.getAsientoUbiId() == null) {
+        if (asientoVuelo.getCodigoAsientoSistema() == null ||
+                asientoVuelo.getCodigoAsientoSistema().isBlank()) {
             return;
         }
 
         asientoUbiRepository
-                .findById(asientoVuelo.getAsientoUbiId())
+                .findFirstByCodigoAsientoSistemaOrderByIdAsc(
+                        asientoVuelo.getCodigoAsientoSistema()
+                )
                 .ifPresent(asiento -> {
 
                     response.setClaseVueloId(

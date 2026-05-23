@@ -23,7 +23,7 @@ public class AsientoVueloResponse {
 
     private String codigoAvion;
 
-    private Integer asientoUbiId;
+    private String codigoAsientoSistema;
 
     private Integer claseVueloId;
 
