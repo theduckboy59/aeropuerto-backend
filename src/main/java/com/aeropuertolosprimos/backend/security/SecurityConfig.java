@@ -111,6 +111,11 @@ public class SecurityConfig {
 
                         .requestMatchers("/pagos/**").permitAll()
 
+                        .requestMatchers("/checkin/**").permitAll()
+
+                        .requestMatchers("/reportes/**").permitAll()
+                        .requestMatchers("/consultas/**").permitAll()
+
 
                         .anyRequest().authenticated()
                 )

@@ -8,6 +8,7 @@ import com.aeropuertolosprimos.backend.exception.BusinessException;
 import com.aeropuertolosprimos.backend.model.*;
 import com.aeropuertolosprimos.backend.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,6 +56,8 @@ public class ReservaServiceImpl implements ReservaService {
     private final EstadoAsientoRepository estadoAsientoRepository;
     private final TipoEquipajeRepository tipoEquipajeRepository;
     private final EstadoEquipajeRepository estadoEquipajeRepository;
+
+    private final JdbcTemplate jdbc;
 
     @Override
     @Transactional
@@ -113,6 +116,8 @@ public class ReservaServiceImpl implements ReservaService {
         Set<Integer> asientosUsados = new HashSet<>();
 
         BigDecimal subtotal = BigDecimal.ZERO;
+        BigDecimal recargoTotal = BigDecimal.ZERO;
+
         Integer compradorUserId = request.getUserId();
         Integer primerPasajeroId = null;
 
@@ -186,6 +191,21 @@ public class ReservaServiceImpl implements ReservaService {
 
                     throw new BusinessException("La clase seleccionada no coincide con la clase del asiento");
                 }
+
+                BigDecimal precioCalculado = resolverPrecioBase(
+                        vueloOperado.getVueloProgramadoId(),
+                        item.getClaseVueloId(),
+                        item.getPrecioBase()
+                );
+
+                item.setPrecioBase(precioCalculado);
+
+                BigDecimal recargoAsiento = resolverRecargoAsiento(
+                        vueloOperado.getVueloProgramadoId(),
+                        asientoUbi
+                );
+
+                recargoTotal = recargoTotal.add(recargoAsiento);
             }
 
             subtotal = subtotal.add(
@@ -200,8 +220,8 @@ public class ReservaServiceImpl implements ReservaService {
         reserva.setVueloOperadoId(vueloOperado.getId());
         reserva.setEstadoReservaId(estadoReserva.getId());
         reserva.setSubtotal(subtotal);
-        reserva.setRecargoTotal(BigDecimal.ZERO);
-        reserva.setTotal(subtotal);
+        reserva.setRecargoTotal(recargoTotal);
+        reserva.setTotal(subtotal.add(recargoTotal));
         reserva.setEstadoId(1);
 
         reserva = reservaRepository.save(reserva);
@@ -233,6 +253,23 @@ public class ReservaServiceImpl implements ReservaService {
                     ? item.getPrecioBase()
                     : BigDecimal.ZERO;
 
+            BigDecimal recargoAsiento = BigDecimal.ZERO;
+
+            if (requiereAsiento(item)) {
+
+                AsientoVuelo asientoVueloTmp = asientoVueloRepository.findById(item.getAsientoVueloId())
+                        .orElseThrow(() -> new BusinessException("Asiento de vuelo no encontrado"));
+
+                AsientoUbi asientoUbiTmp = asientoUbiRepository
+                        .findFirstByCodigoAsientoSistemaOrderByIdAsc(asientoVueloTmp.getCodigoAsientoSistema())
+                        .orElseThrow(() -> new BusinessException("No se encontró la ubicación física del asiento"));
+
+                recargoAsiento = resolverRecargoAsiento(
+                        vueloOperado.getVueloProgramadoId(),
+                        asientoUbiTmp
+                );
+            }
+
             Boleto boleto = new Boleto();
 
             boleto.setReservaId(reserva.getId());
@@ -241,7 +278,7 @@ public class ReservaServiceImpl implements ReservaService {
             boleto.setEstadoBoletoId(estadoBoleto.getId());
             boleto.setPrecioBase(precioBase);
             boleto.setRecargoEquipaje(BigDecimal.ZERO);
-            boleto.setTotal(precioBase);
+            boleto.setTotal(precioBase.add(recargoAsiento));
             boleto.setEstadoId(1);
 
             boleto = boletoRepository.save(boleto);
@@ -422,6 +459,80 @@ public class ReservaServiceImpl implements ReservaService {
         return response;
     }
 
+    private BigDecimal resolverPrecioBase(
+            Integer vueloProgramadoId,
+            Integer claseVueloId,
+            BigDecimal precioRequest
+    ) {
+
+        if (vueloProgramadoId == null || claseVueloId == null) {
+            return precioRequest != null ? precioRequest : BigDecimal.ZERO;
+        }
+
+        List<BigDecimal> precios = jdbc.queryForList(
+                """
+                SELECT precio
+                FROM precio_vuelo
+                WHERE vuelo_programado_id = ?
+                  AND clase_vuelo_id = ?
+                  AND (fecha_vigencia_desde IS NULL OR fecha_vigencia_desde <= CURRENT_DATE)
+                  AND (fecha_vigencia_hasta IS NULL OR fecha_vigencia_hasta >= CURRENT_DATE)
+                ORDER BY fecha_vigencia_desde DESC NULLS LAST, id DESC
+                LIMIT 1
+                """,
+                BigDecimal.class,
+                vueloProgramadoId,
+                claseVueloId
+        );
+
+        if (!precios.isEmpty()) {
+            return precios.get(0) != null ? precios.get(0) : BigDecimal.ZERO;
+        }
+
+        if (precioRequest != null) {
+            return precioRequest;
+        }
+
+        throw new BusinessException("No existe precio configurado para la clase seleccionada");
+    }
+
+    private BigDecimal resolverRecargoAsiento(
+            Integer vueloProgramadoId,
+            AsientoUbi asientoUbi
+    ) {
+
+        if (vueloProgramadoId == null ||
+                asientoUbi == null ||
+                asientoUbi.getClaseVueloId() == null ||
+                asientoUbi.getTipoAsientoId() == null) {
+
+            return BigDecimal.ZERO;
+        }
+
+        List<BigDecimal> recargos = jdbc.queryForList(
+                """
+                SELECT COALESCE(rat.recargo, 0)
+                FROM recargo_asiento_tipo rat
+                JOIN tipo_asiento ta ON UPPER(ta.nombre) = UPPER(rat.tipo_asiento)
+                WHERE rat.vuelo_programado_id = ?
+                  AND rat.clase_vuelo_id = ?
+                  AND ta.id = ?
+                ORDER BY rat.id DESC
+                LIMIT 1
+                """,
+                BigDecimal.class,
+                vueloProgramadoId,
+                asientoUbi.getClaseVueloId(),
+                asientoUbi.getTipoAsientoId()
+        );
+
+        if (recargos.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        return recargos.get(0) != null ? recargos.get(0) : BigDecimal.ZERO;
+    }
+
     private void validarBase(
             ReservaRequest request
     ) {
@@ -519,8 +630,6 @@ public class ReservaServiceImpl implements ReservaService {
 
         return valor.trim();
     }
-
-
 
     private void validarItem(
             ReservaPasajeroItemRequest item

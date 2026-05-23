@@ -56,4 +56,16 @@ public interface BoletoRepository extends JpaRepository<Boleto, Integer> {
             @Param("horaSalida") LocalTime horaSalida,
             @Param("estadoCanceladoId") Integer estadoCanceladoId
     );
+
+    Optional<Boleto> findFirstByCodigoPaseAbordarAndEstadoIdOrderByIdDesc(
+            String codigoPaseAbordar,
+            Integer estadoId
+    );
+
+    Optional<Boleto> findFirstByPasajeroIdAndVueloOperadoIdAndEstadoBoletoIdNotAndEstadoIdOrderByIdDesc(
+            Integer pasajeroId,
+            Integer vueloOperadoId,
+            Integer estadoBoletoId,
+            Integer estadoId
+    );
 }
