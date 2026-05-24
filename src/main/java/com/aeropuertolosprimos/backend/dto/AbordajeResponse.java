@@ -21,7 +21,15 @@ public class AbordajeResponse {
 
     private Integer vueloOperadoId;
 
+    private Integer boletoSegmentoId;
+
+    private Integer segmentoOperadoId;
+
+    private Integer ordenSegmento;
+
     private String estadoBoleto;
+
+    private String estadoBoletoSegmento;
 
     private String asiento;
 
@@ -30,6 +38,12 @@ public class AbordajeResponse {
     private Integer cantidadMaletasPresentadas;
 
     private BigDecimal recargoEquipaje;
+
+    private Boolean requierePagoRecargo;
+
+    private Integer pagoRecargoId;
+
+    private String estadoPagoRecargo;
 
     private BigDecimal total;
 

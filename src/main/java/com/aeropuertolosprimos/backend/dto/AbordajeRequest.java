@@ -2,6 +2,8 @@ package com.aeropuertolosprimos.backend.dto;
 
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class AbordajeRequest {
 
@@ -10,6 +12,8 @@ public class AbordajeRequest {
     private String pasaporte;
 
     private Integer cantidadMaletasPresentadas;
+
+    private List<AbordajeEquipajeRequest> equipajes;
 
     private Integer empleadoId;
 

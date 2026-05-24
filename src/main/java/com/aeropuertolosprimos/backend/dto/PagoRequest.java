@@ -18,4 +18,6 @@ public class PagoRequest {
     private String nit;
 
     private String nombreCliente;
+
+    private String tipoPago;
 }

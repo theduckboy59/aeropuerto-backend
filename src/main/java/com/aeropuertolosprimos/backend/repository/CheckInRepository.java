@@ -16,4 +16,9 @@ public interface CheckInRepository extends JpaRepository<CheckIn, Integer> {
     List<CheckIn> findByBoletoSegmentoIdOrderByIdDesc(
             Integer boletoSegmentoId
     );
+
+    boolean existsByBoletoSegmentoIdAndEstadoCheckinId(
+            Integer boletoSegmentoId,
+            Integer estadoCheckinId
+    );
 }

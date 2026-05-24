@@ -46,10 +46,6 @@ public class Pago {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
 
-        if (fechaPago == null) {
-            fechaPago = LocalDateTime.now();
-        }
-
         if (fechaActualizacion == null) {
             fechaActualizacion = LocalDateTime.now();
         }
