@@ -4,6 +4,7 @@ import com.aeropuertolosprimos.backend.dto.PasajeroRequest;
 import com.aeropuertolosprimos.backend.dto.PasajeroResponse;
 import com.aeropuertolosprimos.backend.service.PasajeroService;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
 
 import java.util.List;
 
@@ -32,6 +33,18 @@ public class PasajeroController {
         }
 
         return service.listar();
+    }
+
+    @GetMapping("/me")
+    public PasajeroResponse obtenerActual(
+            Authentication authentication
+    ) {
+
+        if (authentication == null || authentication.getName() == null) {
+            return service.obtenerActualPorEmail(null);
+        }
+
+        return service.obtenerActualPorEmail(authentication.getName());
     }
 
     @GetMapping("/{id}")

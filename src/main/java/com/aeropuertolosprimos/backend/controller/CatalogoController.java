@@ -41,6 +41,8 @@ public class CatalogoController {
 
     private final TipoSegmentoVueloRepository tipoSegmentoVueloRepository;
 
+    private final MetodoPagoRepository metodoPagoRepository;
+
     @GetMapping("/status")
     public List<StatusCatalog> listarStatus() {
         return statusCatalogRepository.findAll();
@@ -139,5 +141,10 @@ public class CatalogoController {
     @GetMapping("/tipo-segmento-vuelo")
     public List<TipoSegmentoVuelo> listarTipoSegmentoVuelo() {
         return tipoSegmentoVueloRepository.findByEstadoId(1);
+    }
+
+    @GetMapping("/metodo-pago")
+    public List<MetodoPago> listarMetodoPago() {
+        return metodoPagoRepository.findByEstadoIdOrderByNombreAsc(1);
     }
 }

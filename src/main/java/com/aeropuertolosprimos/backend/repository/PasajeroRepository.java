@@ -12,6 +12,8 @@ public interface PasajeroRepository extends JpaRepository<Pasajero, Integer> {
 
     Optional<Pasajero> findByPasaporte(String pasaporte);
 
+    Optional<Pasajero> findByUser_Email(String email);
+
     List<Pasajero> findByEstadoId(Integer estadoId);
 
     List<Pasajero> findByNombreCompletoContainingIgnoreCaseAndEstadoId(

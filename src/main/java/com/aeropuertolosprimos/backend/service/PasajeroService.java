@@ -13,6 +13,8 @@ public interface PasajeroService {
 
     PasajeroResponse obtenerPorId(Integer id);
 
+    PasajeroResponse obtenerActualPorEmail(String email);
+
     PasajeroResponse actualizar(Integer id, PasajeroRequest request);
 
     List<PasajeroResponse> buscar(String nombre);

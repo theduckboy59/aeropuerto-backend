@@ -41,6 +41,7 @@ public class RegisterRequest {
     @NotBlank(message = "Debe ingresar los campos obligatorios")
     private String telefono;
 
+    @NotBlank(message = "Debe ingresar los campos obligatorios")
     private String telefonoEmergencia;
 
     @NotBlank(message = "Debe ingresar los campos obligatorios")

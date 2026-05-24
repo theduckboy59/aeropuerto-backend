@@ -112,6 +112,19 @@ public class PasajeroServiceImpl implements PasajeroService {
     }
 
     @Override
+    public PasajeroResponse obtenerActualPorEmail(String email) {
+
+        if (email == null || email.isBlank()) {
+            throw new BusinessException("No se pudo identificar al usuario autenticado");
+        }
+
+        Pasajero pasajero = repository.findByUser_Email(email.trim())
+                .orElseThrow(() -> new ResourceNotFoundException("Pasajero no encontrado para el usuario autenticado"));
+
+        return mapResponse(pasajero);
+    }
+
+    @Override
     public PasajeroResponse actualizar(Integer id, PasajeroRequest request) {
 
         validar(request);
