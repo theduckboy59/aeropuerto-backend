@@ -2,6 +2,7 @@ package com.aeropuertolosprimos.backend.service;
 
 import com.aeropuertolosprimos.backend.dto.AbordajeRequest;
 import com.aeropuertolosprimos.backend.dto.AbordajeResponse;
+import com.aeropuertolosprimos.backend.dto.AbordajeVueloPendienteResponse;
 import com.aeropuertolosprimos.backend.dto.FinalizarAbordajeResponse;
 import com.aeropuertolosprimos.backend.exception.BusinessException;
 import com.aeropuertolosprimos.backend.model.*;
@@ -11,8 +12,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -33,7 +37,8 @@ public class AbordajeServiceImpl implements AbordajeService {
 
     private static final String TIPO_EQUIPAJE_MALETA = "MALETA";
 
-    private static final String ESTADO_VUELO_ABORDADO = "ABORDANDO";
+    private static final String ESTADO_ABORDAJE_ABORDADO = "ABORDADO";
+    private static final String ESTADO_ABORDAJE_CANCELADO = "CANCELADO";
 
     private final PasajeroRepository pasajeroRepository;
     private final BoletoRepository boletoRepository;
@@ -42,7 +47,9 @@ public class AbordajeServiceImpl implements AbordajeService {
     private final EquipajeRepository equipajeRepository;
 
     private final VueloOperadoRepository vueloOperadoRepository;
+    private final VueloProgramadoRepository vueloProgramadoRepository;
     private final SegmentoOperadoRepository segmentoOperadoRepository;
+    private final SegmentoVueloRepository segmentoVueloRepository;
 
     private final AsientoVueloRepository asientoVueloRepository;
     private final AsientoUbiRepository asientoUbiRepository;
@@ -52,6 +59,39 @@ public class AbordajeServiceImpl implements AbordajeService {
     private final EstadoEquipajeRepository estadoEquipajeRepository;
     private final TipoEquipajeRepository tipoEquipajeRepository;
     private final EstadoVueloRepository estadoVueloRepository;
+
+    private final AbordajeRepository abordajeRepository;
+    private final EstadoAbordajeVueloRepository estadoAbordajeVueloRepository;
+    private final PuertaEmbarqueRepository puertaEmbarqueRepository;
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AbordajeVueloPendienteResponse> listarVuelosPendientes(
+            Integer aerolineaId
+    ) {
+
+        if (aerolineaId == null) {
+            throw new BusinessException("No tiene una aerolínea asignada");
+        }
+
+        List<String> estadosAbordaje = List.of(
+                "pendiente abordar",
+                "pendiente_abordar",
+                "programado"
+        );
+
+        List<AbordajeVueloPendienteResponse> vuelos = abordajeRepository
+                .listarVuelosPendientesParaAbordaje(
+                        aerolineaId,
+                        estadosAbordaje
+                );
+
+        if (vuelos.isEmpty()) {
+            throw new BusinessException("No hay vuelos disponibles");
+        }
+
+        return vuelos;
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -91,6 +131,10 @@ public class AbordajeServiceImpl implements AbordajeService {
 
         EstadoBoleto estadoAbordado = obtenerEstadoBoleto(
                 ESTADO_BOLETO_ABORDADO
+        );
+
+        EstadoAbordajeVuelo estadoAbordajeAbordado = obtenerEstadoAbordaje(
+                ESTADO_ABORDAJE_ABORDADO
         );
 
         EstadoAsiento estadoOcupado = estadoAsientoRepository
@@ -206,10 +250,22 @@ public class AbordajeServiceImpl implements AbordajeService {
             }
         }
 
+        registrarMovimientoAbordaje(
+                request,
+                boleto,
+                segmentos,
+                estadoAbordajeAbordado,
+                true
+        );
+
+        String mensaje = cantidadPresentada > cantidadRegistrada
+                ? "Se agregó " + recargo + " por recargo de equipaje"
+                : "Pasajero abordado correctamente";
+
         return mapResponse(
                 boleto,
                 cantidadPresentada,
-                "Pasajero abordado correctamente"
+                mensaje
         );
     }
 
@@ -238,6 +294,10 @@ public class AbordajeServiceImpl implements AbordajeService {
                 ESTADO_BOLETO_CANCELADO
         );
 
+        EstadoAbordajeVuelo estadoAbordajeCancelado = obtenerEstadoAbordaje(
+                ESTADO_ABORDAJE_CANCELADO
+        );
+
         EstadoAsiento estadoBloqueado = estadoAsientoRepository
                 .findByNombreIgnoreCase(ESTADO_ASIENTO_BLOQUEADO)
                 .orElseThrow(() -> new BusinessException("Estado de asiento BLOQUEADO no encontrado"));
@@ -246,9 +306,7 @@ public class AbordajeServiceImpl implements AbordajeService {
                 .findByNombreIgnoreCase(ESTADO_EQUIPAJE_CANCELADO)
                 .orElseThrow(() -> new BusinessException("Estado de equipaje CANCELADO no encontrado"));
 
-        EstadoVuelo estadoVueloAbordado = estadoVueloRepository
-                .findByNombreIgnoreCase(ESTADO_VUELO_ABORDADO)
-                .orElseThrow(() -> new BusinessException("Estado de vuelo ABORDANDO no encontrado"));
+        EstadoVuelo estadoVueloAbordado = obtenerEstadoVueloAbordado();
 
         List<Boleto> boletos = boletoRepository
                 .findByVueloOperadoIdAndEstadoId(
@@ -311,6 +369,13 @@ public class AbordajeServiceImpl implements AbordajeService {
                     equipaje.setEstadoEquipajeId(estadoEquipajeCancelado.getId());
                     equipajeRepository.save(equipaje);
                 }
+
+                registrarMovimientoAbordajeCancelado(
+                        vueloOperadoId,
+                        boleto,
+                        segmentos,
+                        estadoAbordajeCancelado
+                );
             }
         }
 
@@ -379,7 +444,7 @@ public class AbordajeServiceImpl implements AbordajeService {
 
         Pasajero pasajero = pasajeroRepository
                 .findByPasaporte(pasaporte.trim())
-                .orElseThrow(() -> new BusinessException("Pasajero no encontrado"));
+                .orElseThrow(() -> new BusinessException("El pasajero no se encuentra registrado en el vuelo"));
 
         EstadoBoleto estadoPendiente = obtenerEstadoBoleto(
                 ESTADO_BOLETO_PENDIENTE
@@ -393,7 +458,7 @@ public class AbordajeServiceImpl implements AbordajeService {
                         1
                 )
                 .orElseThrow(() ->
-                        new BusinessException("El pasajero no se encuentra registrado en el vuelo o no tiene boleto pendiente de abordar")
+                        new BusinessException("El pasajero no se encuentra registrado en el vuelo")
                 );
     }
 
@@ -405,6 +470,33 @@ public class AbordajeServiceImpl implements AbordajeService {
                 .findByNombreIgnoreCase(nombre)
                 .orElseThrow(() ->
                         new BusinessException("Estado de boleto no encontrado: " + nombre)
+                );
+    }
+
+    private EstadoAbordajeVuelo obtenerEstadoAbordaje(
+            String nombre
+    ) {
+
+        return estadoAbordajeVueloRepository
+                .findByNombreIgnoreCase(nombre)
+                .orElseThrow(() ->
+                        new BusinessException("Estado de abordaje no encontrado: " + nombre)
+                );
+    }
+
+    private EstadoVuelo obtenerEstadoVueloAbordado() {
+
+        Optional<EstadoVuelo> estadoAbordado = estadoVueloRepository
+                .findByNombreIgnoreCase("ABORDADO");
+
+        if (estadoAbordado.isPresent()) {
+            return estadoAbordado.get();
+        }
+
+        return estadoVueloRepository
+                .findByNombreIgnoreCase("ABORDANDO")
+                .orElseThrow(() ->
+                        new BusinessException("Estado de vuelo ABORDADO no encontrado")
                 );
     }
 
@@ -422,6 +514,171 @@ public class AbordajeServiceImpl implements AbordajeService {
         }
 
         return segmentos.get(0).getSegmentoOperadoId();
+    }
+
+    private void registrarMovimientoAbordaje(
+            AbordajeRequest request,
+            Boleto boleto,
+            List<BoletoSegmento> segmentos,
+            EstadoAbordajeVuelo estadoAbordaje,
+            Boolean boletoValidado
+    ) {
+
+        BoletoSegmento boletoSegmento = obtenerSegmentoActual(
+                request.getVueloOperadoId(),
+                segmentos
+        );
+
+        if (boletoSegmento == null) {
+            return;
+        }
+
+        if (abordajeRepository.existsByBoletoSegmentoIdAndEstadoAbordajeVueloId(
+                boletoSegmento.getId(),
+                estadoAbordaje.getId()
+        )) {
+            return;
+        }
+
+        Abordaje abordaje = new Abordaje();
+
+        abordaje.setBoletoSegmentoId(boletoSegmento.getId());
+        abordaje.setEmpleadoId(request.getEmpleadoId());
+        abordaje.setPuertaEmbarqueId(
+                obtenerPuertaEmbarqueId(
+                        request.getVueloOperadoId(),
+                        boletoSegmento
+                )
+        );
+        abordaje.setEstadoAbordajeVueloId(estadoAbordaje.getId());
+        abordaje.setTipoAbordaje(
+                request.getTipoAbordaje() != null && !request.getTipoAbordaje().isBlank()
+                        ? request.getTipoAbordaje().trim().toUpperCase()
+                        : "MANUAL"
+        );
+        abordaje.setFechaAbordaje(LocalDate.now());
+        abordaje.setHoraAbordaje(LocalTime.now());
+        abordaje.setBoletoValidado(boletoValidado);
+
+        abordajeRepository.save(abordaje);
+    }
+
+    private void registrarMovimientoAbordajeCancelado(
+            Integer vueloOperadoId,
+            Boleto boleto,
+            List<BoletoSegmento> segmentos,
+            EstadoAbordajeVuelo estadoAbordaje
+    ) {
+
+        BoletoSegmento boletoSegmento = obtenerSegmentoActual(
+                vueloOperadoId,
+                segmentos
+        );
+
+        if (boletoSegmento == null) {
+            return;
+        }
+
+        if (abordajeRepository.existsByBoletoSegmentoIdAndEstadoAbordajeVueloId(
+                boletoSegmento.getId(),
+                estadoAbordaje.getId()
+        )) {
+            return;
+        }
+
+        Abordaje abordaje = new Abordaje();
+
+        abordaje.setBoletoSegmentoId(boletoSegmento.getId());
+        abordaje.setPuertaEmbarqueId(
+                obtenerPuertaEmbarqueId(
+                        vueloOperadoId,
+                        boletoSegmento
+                )
+        );
+        abordaje.setEstadoAbordajeVueloId(estadoAbordaje.getId());
+        abordaje.setTipoAbordaje("AUTOMATICO");
+        abordaje.setFechaAbordaje(LocalDate.now());
+        abordaje.setHoraAbordaje(LocalTime.now());
+        abordaje.setBoletoValidado(false);
+
+        abordajeRepository.save(abordaje);
+    }
+
+    private BoletoSegmento obtenerSegmentoActual(
+            Integer vueloOperadoId,
+            List<BoletoSegmento> segmentos
+    ) {
+
+        if (segmentos == null || segmentos.isEmpty()) {
+            return null;
+        }
+
+        VueloOperado vueloOperado = vueloOperadoRepository
+                .findById(vueloOperadoId)
+                .orElseThrow(() -> new BusinessException("Vuelo operado no encontrado"));
+
+        Integer ordenActual = vueloOperado.getSegmentoActualOrden() != null
+                ? vueloOperado.getSegmentoActualOrden()
+                : 1;
+
+        return segmentos.stream()
+                .filter(segmento ->
+                        Objects.equals(segmento.getOrdenSegmento(), ordenActual)
+                )
+                .findFirst()
+                .orElse(segmentos.get(0));
+    }
+
+    private Integer obtenerPuertaEmbarqueId(
+            Integer vueloOperadoId,
+            BoletoSegmento boletoSegmento
+    ) {
+
+        VueloOperado vueloOperado = vueloOperadoRepository
+                .findById(vueloOperadoId)
+                .orElseThrow(() -> new BusinessException("Vuelo operado no encontrado"));
+
+        VueloProgramado vueloProgramado = vueloProgramadoRepository
+                .findById(vueloOperado.getVueloProgramadoId())
+                .orElseThrow(() -> new BusinessException("Vuelo programado no encontrado"));
+
+        Integer aeropuertoSalidaId = vueloProgramado.getAeropuertoSalidaId();
+
+        if (boletoSegmento.getSegmentoOperadoId() != null) {
+
+            Optional<SegmentoOperado> segmentoOperadoOptional = segmentoOperadoRepository
+                    .findById(boletoSegmento.getSegmentoOperadoId());
+
+            if (segmentoOperadoOptional.isPresent()) {
+
+                SegmentoOperado segmentoOperado = segmentoOperadoOptional.get();
+
+                if (segmentoOperado.getSegmentoVueloId() != null) {
+
+                    Optional<SegmentoVuelo> segmentoVueloOptional = segmentoVueloRepository
+                            .findById(segmentoOperado.getSegmentoVueloId());
+
+                    if (segmentoVueloOptional.isPresent()) {
+                        aeropuertoSalidaId = segmentoVueloOptional.get().getAeropuertoSalidaId();
+                    }
+                }
+            }
+        }
+
+        String codigoPuerta = vueloProgramado.getPuertaEmbarqueSalida();
+
+        if (codigoPuerta == null || codigoPuerta.isBlank()) {
+            return null;
+        }
+
+        return puertaEmbarqueRepository
+                .findFirstByAeropuertoIdAndCodigoIgnoreCaseAndEstadoId(
+                        aeropuertoSalidaId,
+                        codigoPuerta.trim(),
+                        1
+                )
+                .map(PuertaEmbarque::getId)
+                .orElse(null);
     }
 
     private AbordajeResponse mapResponse(

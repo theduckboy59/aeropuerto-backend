@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 
+import java.util.Optional;
+
 public interface PuertaEmbarqueRepository
         extends JpaRepository<PuertaEmbarque, Integer> {
 
@@ -14,6 +16,12 @@ public interface PuertaEmbarqueRepository
     );
 
     boolean existsByAeropuertoIdAndCodigoIgnoreCaseAndEstadoId(
+            Integer aeropuertoId,
+            String codigo,
+            Integer estadoId
+    );
+
+    Optional<PuertaEmbarque> findFirstByAeropuertoIdAndCodigoIgnoreCaseAndEstadoId(
             Integer aeropuertoId,
             String codigo,
             Integer estadoId

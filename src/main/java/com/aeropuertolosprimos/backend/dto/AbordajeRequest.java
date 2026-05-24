@@ -10,4 +10,8 @@ public class AbordajeRequest {
     private String pasaporte;
 
     private Integer cantidadMaletasPresentadas;
+
+    private Integer empleadoId;
+
+    private String tipoAbordaje;
 }
