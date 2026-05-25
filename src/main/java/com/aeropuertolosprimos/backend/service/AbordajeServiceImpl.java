@@ -1,5 +1,4 @@
 package com.aeropuertolosprimos.backend.service;
-
 import com.aeropuertolosprimos.backend.dto.AbordajeEquipajeRequest;
 import com.aeropuertolosprimos.backend.dto.AbordajeRequest;
 import com.aeropuertolosprimos.backend.dto.AbordajeResponse;
@@ -46,7 +45,7 @@ import com.aeropuertolosprimos.backend.repository.PagoRepository;
 import com.aeropuertolosprimos.backend.repository.PasajeroRepository;
 import com.aeropuertolosprimos.backend.repository.PuertaEmbarqueRepository;
 import com.aeropuertolosprimos.backend.repository.SegmentoOperadoRepository;
-import com.aeropuertolosprimos.backend.repository.StatusCatalogRepository;
+//import com.aeropuertolosprimos.backend.repository.StatusCatalogRepository;
 import com.aeropuertolosprimos.backend.repository.TipoEquipajeRepository;
 import com.aeropuertolosprimos.backend.repository.VueloOperadoRepository;
 import com.aeropuertolosprimos.backend.repository.VueloProgramadoRepository;
@@ -70,7 +69,7 @@ public class AbordajeServiceImpl implements AbordajeService {
     private static final BigDecimal PESO_MAXIMO_MALETA = new BigDecimal("23.00");
     private static final BigDecimal RECARGO_POR_KG_EXCEDENTE = new BigDecimal("10.00");
 
-    private static final String STATUS_ACTIVO = "ACTIVO";
+    //private static final String STATUS_ACTIVO = "ACTIVO";
 
     private static final String ESTADO_BOLETO_PENDIENTE = "PENDIENTE_ABORDAR";
     private static final String ESTADO_BOLETO_ABORDADO = "ABORDADO";
@@ -124,7 +123,7 @@ public class AbordajeServiceImpl implements AbordajeService {
     private final EstadoPagoRepository estadoPagoRepository;
     private final PagoService pagoService;
 
-    private final StatusCatalogRepository statusCatalogRepository;
+    private final CatalogoEstadoService catalogoEstadoService;
 
     @Override
     @Transactional(readOnly = true)
@@ -142,10 +141,13 @@ public class AbordajeServiceImpl implements AbordajeService {
                 "pendiente_abordar"
         );
 
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+
         List<AbordajeVueloPendienteResponse> vuelos = abordajeRepository
                 .listarVuelosPendientesParaAbordaje(
                         aerolineaId,
-                        estadosAbordaje
+                        estadosAbordaje,
+                        estadoActivoId
                 );
 
         if (vuelos.isEmpty()) {
@@ -968,13 +970,7 @@ public class AbordajeServiceImpl implements AbordajeService {
     }
 
     private Integer obtenerEstadoActivoId() {
-
-        return statusCatalogRepository
-                .findByNameIgnoreCase(STATUS_ACTIVO)
-                .orElseThrow(() ->
-                        new BusinessException("Estado ACTIVO no encontrado en status_catalog")
-                )
-                .getId();
+        return catalogoEstadoService.obtenerActivoId();
     }
 
     private SegmentoOperado obtenerSegmentoActual(

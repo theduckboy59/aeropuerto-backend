@@ -16,10 +16,14 @@ public class AerolineaServiceImpl
 
     private final AerolineaRepository repository;
 
+    private final CatalogoEstadoService catalogoEstadoService;
+
     public AerolineaServiceImpl(
-            AerolineaRepository repository
+            AerolineaRepository repository,
+            CatalogoEstadoService catalogoEstadoService
     ) {
         this.repository = repository;
+        this.catalogoEstadoService = catalogoEstadoService;
     }
 
     @Override
@@ -35,6 +39,8 @@ public class AerolineaServiceImpl
         String codigoIata = generarCodigoIata(nombreLimpio);
         String codigoIcao = generarCodigoIcao(nombreLimpio, paisLimpio);
 
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+
         Aerolinea aerolinea =
                 new Aerolinea();
 
@@ -42,7 +48,7 @@ public class AerolineaServiceImpl
         aerolinea.setCodigoIata(codigoIata);
         aerolinea.setCodigoIcao(codigoIcao);
         aerolinea.setPais(paisLimpio);
-        aerolinea.setEstadoId(1);
+        aerolinea.setEstadoId(estadoActivoId);
 
         aerolinea = repository.save(
                 aerolinea
@@ -60,20 +66,22 @@ public class AerolineaServiceImpl
 
         List<Aerolinea> aerolineas;
 
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+
         if (nombre != null &&
                 !nombre.isBlank()) {
 
             aerolineas =
                     repository
                             .findByEstadoIdAndNombreContainingIgnoreCase(
-                                    1,
+                                    estadoActivoId,
                                     nombre
                             );
 
         } else {
 
             aerolineas =
-                    repository.findByEstadoId(1);
+                    repository.findByEstadoId(estadoActivoId);
         }
 
         return aerolineas.stream()
@@ -162,7 +170,8 @@ public class AerolineaServiceImpl
                                         "Aerolínea no encontrada"
                                 ));
 
-        aerolinea.setEstadoId(2);
+        Integer estadoInactivoId = catalogoEstadoService.obtenerInactivoId();
+        aerolinea.setEstadoId(estadoInactivoId);
 
         repository.save(
                 aerolinea

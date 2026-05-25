@@ -19,6 +19,8 @@ public class ReporteServiceImpl implements ReporteService {
 
     private final JdbcTemplate jdbc;
 
+    private final CatalogoEstadoService catalogoEstadoService;
+
     @Override
     public Map<String, Object> consultaVuelo(String codigoVuelo) {
 
@@ -155,6 +157,8 @@ public class ReporteServiceImpl implements ReporteService {
 
         validarExisteVuelo(codigoVuelo);
 
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+
         String sql = """
                 SELECT
                     vo.id AS "vueloOperadoId",
@@ -178,11 +182,16 @@ public class ReporteServiceImpl implements ReporteService {
                 JOIN vuelo v ON v.id = vp.vuelo_id
                 LEFT JOIN estado_boleto eb ON eb.id = b.estado_boleto_id
                 WHERE UPPER(v.codigo_vuelo) = UPPER(?)
-                  AND COALESCE(b.estado_id, 1) = 1
+                  AND COALESCE(b.estado_id, ?) = ?
                 ORDER BY p.nombre_completo ASC
                 """;
 
-        return jdbc.queryForList(sql, codigoVuelo.trim());
+        return jdbc.queryForList(
+                sql,
+                codigoVuelo.trim(),
+                estadoActivoId,
+                estadoActivoId
+        );
     }
 
     @Override
@@ -228,6 +237,8 @@ public class ReporteServiceImpl implements ReporteService {
             throw new BusinessException("Debe ingresar la aerolínea");
         }
 
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+
         String sql = """
                 SELECT
                     av.id AS "avionId",
@@ -241,7 +252,7 @@ public class ReporteServiceImpl implements ReporteService {
                 JOIN modelo_avion ma ON ma.id = av.modelo_avion_id
                 LEFT JOIN segmento_operado so ON so.avion_id = av.id
                 WHERE av.aerolinea_id = ?
-                  AND COALESCE(av.estado_id, 1) = 1
+                  AND COALESCE(av.estado_id, ?) = ?
                 GROUP BY
                     av.id,
                     av.codigo_avion,
@@ -253,7 +264,12 @@ public class ReporteServiceImpl implements ReporteService {
                 ORDER BY av.codigo_avion ASC
                 """;
 
-        List<Map<String, Object>> rows = jdbc.queryForList(sql, aerolineaId);
+        List<Map<String, Object>> rows = jdbc.queryForList(
+                sql,
+                aerolineaId,
+                estadoActivoId,
+                estadoActivoId
+        );
 
         if (rows.isEmpty()) {
             throw new BusinessException("La aerolínea consultada no tiene aviones");
@@ -269,6 +285,8 @@ public class ReporteServiceImpl implements ReporteService {
             throw new BusinessException("Debe ingresar el aeropuerto");
         }
 
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+
         String sql = """
                 SELECT
                     a.id AS "aerolineaId",
@@ -277,15 +295,24 @@ public class ReporteServiceImpl implements ReporteService {
                     COUNT(DISTINCT da2.id) AS "destinosAutorizados"
                 FROM destino_autorizado da
                 JOIN aerolinea a ON a.id = da.aerolinea_id
-                LEFT JOIN avion av ON av.aerolinea_id = a.id AND COALESCE(av.estado_id, 1) = 1
-                LEFT JOIN destino_autorizado da2 ON da2.aerolinea_id = a.id AND COALESCE(da2.estado_id, 1) = 1
+                LEFT JOIN avion av ON av.aerolinea_id = a.id AND COALESCE(av.estado_id, ?) = ?
+                LEFT JOIN destino_autorizado da2 ON da2.aerolinea_id = a.id AND COALESCE(da2.estado_id, ?) = ?
                 WHERE da.aeropuerto_id = ?
-                  AND COALESCE(da.estado_id, 1) = 1
+                  AND COALESCE(da.estado_id, ?) = ?
                 GROUP BY a.id, a.nombre
                 ORDER BY a.nombre ASC
                 """;
 
-        List<Map<String, Object>> rows = jdbc.queryForList(sql, aeropuertoId);
+        List<Map<String, Object>> rows = jdbc.queryForList(
+                sql,
+                estadoActivoId,
+                estadoActivoId,
+                estadoActivoId,
+                estadoActivoId,
+                aeropuertoId,
+                estadoActivoId,
+                estadoActivoId
+        );
 
         if (rows.isEmpty()) {
             throw new BusinessException("El aeropuerto consultado no tiene aerolíneas");
@@ -301,6 +328,8 @@ public class ReporteServiceImpl implements ReporteService {
             throw new BusinessException("Debe ingresar la aerolínea");
         }
 
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+
         String sql = """
                 SELECT
                     da.id AS "destinoAutorizadoId",
@@ -315,11 +344,16 @@ public class ReporteServiceImpl implements ReporteService {
                 JOIN aerolinea a ON a.id = da.aerolinea_id
                 JOIN aeropuerto ap ON ap.id = da.aeropuerto_id
                 WHERE da.aerolinea_id = ?
-                  AND COALESCE(da.estado_id, 1) = 1
+                  AND COALESCE(da.estado_id, ?) = ?
                 ORDER BY ap.pais ASC, ap.ciudad ASC, ap.nombre ASC
                 """;
 
-        List<Map<String, Object>> rows = jdbc.queryForList(sql, aerolineaId);
+        List<Map<String, Object>> rows = jdbc.queryForList(
+                sql,
+                aerolineaId,
+                estadoActivoId,
+                estadoActivoId
+        );
 
         if (rows.isEmpty()) {
             throw new BusinessException("La aerolínea consultada no tiene destinos autorizados");

@@ -30,18 +30,22 @@ public class EmpleadoServiceImpl implements EmpleadoService {
 
     private final AerolineaRepository aerolineaRepository;
 
+    private final CatalogoEstadoService catalogoEstadoService;
+
     public EmpleadoServiceImpl(
             EmpleadoRepository empleadoRepository,
             UserRepository userRepository,
             TipoEmpleadoRepository tipoEmpleadoRepository,
             AerolineaRepository aerolineaRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            CatalogoEstadoService catalogoEstadoService
     ) {
         this.empleadoRepository = empleadoRepository;
         this.userRepository = userRepository;
         this.tipoEmpleadoRepository = tipoEmpleadoRepository;
         this.aerolineaRepository = aerolineaRepository;
         this.passwordEncoder = passwordEncoder;
+        this.catalogoEstadoService = catalogoEstadoService;
     }
 
     @Override
@@ -68,6 +72,7 @@ public class EmpleadoServiceImpl implements EmpleadoService {
         user = userRepository.save(user);
 
         Empleado empleado = new Empleado();
+        empleado.setEstadoId(catalogoEstadoService.obtenerActivoId());
         empleado.setUser(user);
         empleado.setTipoEmpleadoId(request.getTipoEmpleadoId());
         empleado.setCodigoEmpleado(generarCodigoEmpleado(request.getTipoEmpleadoId()));
@@ -99,7 +104,7 @@ public class EmpleadoServiceImpl implements EmpleadoService {
             Integer areaId
     ) {
         Specification<Empleado> spec = (root, query, cb) ->
-                cb.equal(root.get("estadoId"), 1);
+                cb.equal(root.get("estadoId"), catalogoEstadoService.obtenerActivoId());
 
         if (tipoEmpleadoId != null) {
             spec = spec.and((root, query, cb) ->
@@ -210,7 +215,7 @@ public class EmpleadoServiceImpl implements EmpleadoService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Empleado no encontrado"));
 
-        empleado.setEstadoId(2);
+        empleado.setEstadoId(catalogoEstadoService.obtenerInactivoId());
 
         empleadoRepository.save(empleado);
     }

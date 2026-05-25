@@ -19,7 +19,7 @@ public interface AsientoUbiRepository extends JpaRepository<AsientoUbi, Integer>
                 SELECT v.id
                 FROM Avion v
                 WHERE v.id = a.avionId
-                  AND v.estadoId = 1
+                  AND v.estadoId = :estadoActivoId
             )
               AND (:avionId IS NULL OR a.avionId = :avionId)
               AND (:claseVueloId IS NULL OR a.claseVueloId = :claseVueloId)
@@ -43,6 +43,7 @@ public interface AsientoUbiRepository extends JpaRepository<AsientoUbi, Integer>
             @Param("columna") String columna,
             @Param("numeroAsiento") String numeroAsiento,
             @Param("vendible") Boolean vendible,
+            @Param("estadoActivoId") Integer estadoActivoId,
             Pageable pageable
     );
 

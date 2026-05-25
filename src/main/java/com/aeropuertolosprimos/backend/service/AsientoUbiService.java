@@ -22,6 +22,8 @@ public class AsientoUbiService {
     private final ClaseVueloRepository claseVueloRepository;
     private final TipoAsientoRepository tipoAsientoRepository;
 
+    private final CatalogoEstadoService catalogoEstadoService;
+
     public Page<AsientoUbiResponse> buscarConFiltros(
             Integer avionId,
             Integer claseVueloId,
@@ -33,6 +35,7 @@ public class AsientoUbiService {
             Boolean vendible,
             Pageable pageable
     ) {
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
 
         return asientoUbiRepository
                 .buscarConFiltros(
@@ -44,6 +47,7 @@ public class AsientoUbiService {
                         limpiarTexto(columna),
                         limpiarTexto(numeroAsiento),
                         vendible,
+                        estadoActivoId,
                         pageable
                 )
                 .map(this::convertirAResponse);

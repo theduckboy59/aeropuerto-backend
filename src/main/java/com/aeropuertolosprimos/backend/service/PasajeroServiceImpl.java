@@ -7,70 +7,65 @@ import com.aeropuertolosprimos.backend.exception.ResourceNotFoundException;
 import com.aeropuertolosprimos.backend.model.Pasajero;
 import com.aeropuertolosprimos.backend.model.User;
 import com.aeropuertolosprimos.backend.repository.PasajeroRepository;
+import com.aeropuertolosprimos.backend.repository.RolRepository;
 import com.aeropuertolosprimos.backend.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class PasajeroServiceImpl implements PasajeroService {
 
+    private static final String ROL_PASAJERO = "PASAJERO";
+
     private final PasajeroRepository repository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CatalogoEstadoService catalogoEstadoService;
+    private final RolRepository rolRepository;
 
     public PasajeroServiceImpl(
             PasajeroRepository repository,
             UserRepository userRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            CatalogoEstadoService catalogoEstadoService,
+            RolRepository rolRepository
     ) {
         this.repository = repository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.catalogoEstadoService = catalogoEstadoService;
+        this.rolRepository = rolRepository;
     }
 
     @Override
     public PasajeroResponse crear(PasajeroRequest request) {
 
-        validar(request);
+        validar(request, true);
 
         if (repository.existsByPasaporte(request.getPasaporte().trim())) {
-
-            throw new BusinessException(
-                    "El número de pasaporte ingresado ya cuenta con usuario."
-            );
+            throw new BusinessException("El número de pasaporte ingresado ya cuenta con usuario.");
         }
 
-        if (userRepository.findByUsername(
-                request.getUsername().trim()
-        ).isPresent()) {
-
-            throw new BusinessException(
-                    "El username ya existe."
-            );
+        if (userRepository.findByUsername(request.getUsername().trim()).isPresent()) {
+            throw new BusinessException("El username ya existe.");
         }
 
-        if (userRepository.findByEmail(
-                request.getEmail().trim()
-        ).isPresent()) {
-
-            throw new BusinessException(
-                    "El email ya existe."
-            );
+        if (userRepository.findByEmail(request.getEmail().trim()).isPresent()) {
+            throw new BusinessException("El email ya existe.");
         }
+
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
 
         User user = new User();
 
         user.setUsername(request.getUsername().trim());
         user.setEmail(request.getEmail().trim());
-
-        user.setPassword(
-                passwordEncoder.encode(request.getPassword())
-        );
-
-        user.setRolId(1);
-        user.setEstadoId(1);
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setRolId(obtenerRolPasajeroId());
+        user.setEstadoId(estadoActivoId);
 
         user = userRepository.save(user);
 
@@ -85,7 +80,7 @@ public class PasajeroServiceImpl implements PasajeroService {
         pasajero.setTelefono(request.getTelefono());
         pasajero.setTelefonoEmergencia(request.getTelefonoEmergencia());
         pasajero.setDireccion(request.getDireccion());
-        pasajero.setEstadoId(1);
+        pasajero.setEstadoId(estadoActivoId);
 
         pasajero = repository.save(pasajero);
 
@@ -95,7 +90,9 @@ public class PasajeroServiceImpl implements PasajeroService {
     @Override
     public List<PasajeroResponse> listar() {
 
-        return repository.findByEstadoId(1)
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+
+        return repository.findByEstadoId(estadoActivoId)
                 .stream()
                 .map(this::mapResponse)
                 .toList();
@@ -119,7 +116,8 @@ public class PasajeroServiceImpl implements PasajeroService {
         }
 
         Pasajero pasajero = repository.findByUser_Email(email.trim())
-                .orElseThrow(() -> new ResourceNotFoundException("Pasajero no encontrado para el usuario autenticado"));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Pasajero no encontrado para el usuario autenticado"));
 
         return mapResponse(pasajero);
     }
@@ -127,7 +125,7 @@ public class PasajeroServiceImpl implements PasajeroService {
     @Override
     public PasajeroResponse actualizar(Integer id, PasajeroRequest request) {
 
-        validar(request);
+        validar(request, false);
 
         Pasajero pasajero = repository.findById(id)
                 .orElseThrow(() ->
@@ -150,9 +148,7 @@ public class PasajeroServiceImpl implements PasajeroService {
         if (request.getPassword() != null &&
                 !request.getPassword().isBlank()) {
 
-            user.setPassword(
-                    passwordEncoder.encode(request.getPassword())
-            );
+            user.setPassword(passwordEncoder.encode(request.getPassword()));
         }
 
         userRepository.save(user);
@@ -165,10 +161,12 @@ public class PasajeroServiceImpl implements PasajeroService {
     @Override
     public List<PasajeroResponse> buscar(String nombre) {
 
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+
         return repository
                 .findByNombreCompletoContainingIgnoreCaseAndEstadoId(
                         nombre.trim(),
-                        1
+                        estadoActivoId
                 )
                 .stream()
                 .map(this::mapResponse)
@@ -182,12 +180,19 @@ public class PasajeroServiceImpl implements PasajeroService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Pasajero no encontrado"));
 
-        pasajero.setEstadoId(2);
+        Integer estadoInactivoId = catalogoEstadoService.obtenerInactivoId();
+
+        pasajero.setEstadoId(estadoInactivoId);
+
+        if (pasajero.getUser() != null) {
+            pasajero.getUser().setEstadoId(estadoInactivoId);
+            userRepository.save(pasajero.getUser());
+        }
 
         repository.save(pasajero);
     }
 
-    private void validar(PasajeroRequest request) {
+    private void validar(PasajeroRequest request, boolean requirePassword) {
 
         if (
                 request.getUsername() == null ||
@@ -216,31 +221,34 @@ public class PasajeroServiceImpl implements PasajeroService {
                         request.getDireccion() == null ||
                         request.getDireccion().isBlank()
         ) {
-
-            throw new BusinessException(
-                    "Debe ingresar los campos obligatorios"
-            );
+            throw new BusinessException("Debe ingresar los campos obligatorios");
         }
 
         if (request.getPasaporte().length() > 15) {
-
-            throw new BusinessException(
-                    "El pasaporte no puede exceder 15 caracteres."
-            );
+            throw new BusinessException("El pasaporte no puede exceder 15 caracteres.");
         }
 
-        String regex =
-                "^(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&]).{6,}$";
+        if (requirePassword &&
+                (request.getPassword() == null || request.getPassword().isBlank())) {
 
-        if (!request.getPassword().matches(regex)) {
+            throw new BusinessException("Debe ingresar los campos obligatorios");
+        }
 
-            throw new BusinessException(
-                    "El formato de la contraseña debe incluir al menos una letra mayúscula, un carácter especial y un número"
-            );
+        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+
+            String regex = "^(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&]).{6,}$";
+
+            if (!request.getPassword().matches(regex)) {
+                throw new BusinessException(
+                        "El formato de la contraseña debe incluir al menos una letra mayúscula, un carácter especial y un número"
+                );
+            }
         }
     }
 
     private PasajeroResponse mapResponse(Pasajero pasajero) {
+
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
 
         return PasajeroResponse.builder()
                 .id(pasajero.getId())
@@ -256,10 +264,20 @@ public class PasajeroServiceImpl implements PasajeroService {
                 .telefonoEmergencia(pasajero.getTelefonoEmergencia())
                 .direccion(pasajero.getDireccion())
                 .estado(
-                        pasajero.getEstadoId() == 1
+                        Objects.equals(pasajero.getEstadoId(), estadoActivoId)
                                 ? "Activo"
                                 : "Inactivo"
                 )
                 .build();
+    }
+
+    private Integer obtenerRolPasajeroId() {
+
+        return rolRepository
+                .findByNombreIgnoreCase(ROL_PASAJERO)
+                .orElseThrow(() ->
+                        new BusinessException("Rol PASAJERO no encontrado")
+                )
+                .getId();
     }
 }

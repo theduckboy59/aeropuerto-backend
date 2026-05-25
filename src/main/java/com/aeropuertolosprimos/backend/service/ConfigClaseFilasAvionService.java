@@ -8,19 +8,13 @@ import com.aeropuertolosprimos.backend.model.Avion;
 import com.aeropuertolosprimos.backend.model.ClaseVuelo;
 import com.aeropuertolosprimos.backend.model.ConfigClaseFilasAvion;
 import com.aeropuertolosprimos.backend.model.ModeloAvion;
-import com.aeropuertolosprimos.backend.model.StatusCatalog;
 import com.aeropuertolosprimos.backend.repository.AvionRepository;
 import com.aeropuertolosprimos.backend.repository.ClaseVueloRepository;
 import com.aeropuertolosprimos.backend.repository.ConfigClaseFilasAvionRepository;
 import com.aeropuertolosprimos.backend.repository.ModeloAvionRepository;
-import com.aeropuertolosprimos.backend.repository.StatusCatalogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-
-import com.aeropuertolosprimos.backend.model.Avion;
-import com.aeropuertolosprimos.backend.repository.AvionRepository;
 
 import java.text.Normalizer;
 import java.util.ArrayList;
@@ -34,7 +28,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ConfigClaseFilasAvionService {
 
-    private static final String ESTADO_ACTIVO = "ACTIVO";
 
     private static final String ECONOMICA = "ECONOMICA";
     private static final String EJECUTIVA = "EJECUTIVA";
@@ -50,11 +43,12 @@ public class ConfigClaseFilasAvionService {
     private final AvionRepository avionRepository;
     private final ClaseVueloRepository claseVueloRepository;
     private final ModeloAvionRepository modeloAvionRepository;
-    private final StatusCatalogRepository statusCatalogRepository;
 
     private final EstadoAvionCatalogService estadoAvionCatalogService;
 
     private final AsientoUbiSyncService asientoUbiSyncService;
+
+    private final CatalogoEstadoService catalogoEstadoService;
 
     public List<ConfigClaseFilasAvionCompletaResponse> listarConfiguracionesAvionesActivos(
             String q
@@ -874,23 +868,7 @@ public class ConfigClaseFilasAvionService {
     }
 
     private Integer obtenerEstadoActivoId() {
-        return statusCatalogRepository
-                .findAll()
-                .stream()
-                .filter(estado ->
-                        ESTADO_ACTIVO.equals(
-                                normalizar(
-                                        estado.getName()
-                                )
-                        )
-                )
-                .findFirst()
-                .map(StatusCatalog::getId)
-                .orElseThrow(() ->
-                        new RuntimeException(
-                                "No existe el estado ACTIVO en el catálogo de estados."
-                        )
-                );
+        return catalogoEstadoService.obtenerActivoId();
     }
 
     private List<ClaseVuelo> obtenerClasesConfigurablesObligatorias() {

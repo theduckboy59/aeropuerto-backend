@@ -41,13 +41,14 @@ public interface AbordajeRepository extends JpaRepository<Abordaje, Integer> {
               AND ev.id = vo.estadoVueloId
               AND aeropuertoSalida.id = vp.aeropuertoSalidaId
               AND aeropuertoLlegada.id = vp.aeropuertoLlegadaId
-              AND v.estadoId = 1
+              AND v.estadoId = :estadoActivoId
               AND v.aerolineaId = :aerolineaId
               AND LOWER(ev.nombre) IN :estadosAbordaje
             ORDER BY vp.fechaSalida ASC, vp.horaSalida ASC
             """)
     List<AbordajeVueloPendienteResponse> listarVuelosPendientesParaAbordaje(
             @Param("aerolineaId") Integer aerolineaId,
-            @Param("estadosAbordaje") List<String> estadosAbordaje
+            @Param("estadosAbordaje") List<String> estadosAbordaje,
+            @Param("estadoActivoId") Integer estadoActivoId
     );
 }

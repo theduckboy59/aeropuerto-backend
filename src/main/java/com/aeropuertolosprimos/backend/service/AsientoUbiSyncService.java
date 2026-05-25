@@ -39,6 +39,8 @@ public class AsientoUbiSyncService {
     private final ClaseVueloRepository claseVueloRepository;
     private final EstadoAvionCatalogService estadoAvionCatalogService;
 
+    private final CatalogoEstadoService catalogoEstadoService;
+
 
 
     @Transactional
@@ -432,7 +434,8 @@ public class AsientoUbiSyncService {
             Avion avion
     ) {
 
-        if (modelo.getEstadoId() == null || modelo.getEstadoId() != 1) {
+        if (modelo.getEstadoId() == null ||
+                !Objects.equals(modelo.getEstadoId(), catalogoEstadoService.obtenerActivoId())) {
             throw new RuntimeException("No se puede usar un modelo de avión inactivo.");
         }
 

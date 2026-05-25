@@ -32,6 +32,8 @@ public class AvionServiceImpl implements AvionService {
     private final EstadoAvionCatalogService estadoAvionCatalogService;
     private final AsientoUbiSyncService asientoUbiSyncService;
 
+    private final CatalogoEstadoService catalogoEstadoService;
+
     @Override
     public Page<AvionResponse> findAll(
             String q,
@@ -43,7 +45,8 @@ public class AvionServiceImpl implements AvionService {
             Pageable pageable
     ) {
 
-        Integer estadoFiltro = estadoId != null ? estadoId : 1;
+        Integer estado =
+                estadoId != null ? estadoId : catalogoEstadoService.obtenerActivoId();
 
         return repository.findAll(
                 AvionSpecification.filters(
@@ -51,7 +54,7 @@ public class AvionServiceImpl implements AvionService {
                         aerolineaId,
                         estadoAvionId,
                         modeloAvionId,
-                        estadoFiltro,
+                        estado,
                         anio
                 ),
                 pageable
@@ -94,7 +97,11 @@ public class AvionServiceImpl implements AvionService {
         entity.setAnio(request.getAnio());
         entity.setFilasConfiguradas(request.getFilasConfiguradas());
         entity.setCantidadVuelos(0);
-        entity.setEstadoId(request.getEstadoId() != null ? request.getEstadoId() : 1);
+        entity.setEstadoId(
+                request.getEstadoId() != null
+                        ? request.getEstadoId()
+                        : catalogoEstadoService.obtenerActivoId()
+        );
 
         repository.save(entity);
 
@@ -240,7 +247,7 @@ public class AvionServiceImpl implements AvionService {
 
     private void validateAerolineaIsActive(Aerolinea aerolinea) {
 
-        if (!Objects.equals(aerolinea.getEstadoId(), 1)) {
+        if (!Objects.equals(aerolinea.getEstadoId(), catalogoEstadoService.obtenerActivoId())) {
             throw new RuntimeException(
                     "No se puede usar una aerolínea inactiva"
             );
@@ -249,7 +256,7 @@ public class AvionServiceImpl implements AvionService {
 
     private void validateModelIsActive(ModeloAvion modeloAvion) {
 
-        if (!Objects.equals(modeloAvion.getEstadoId(), 1)) {
+        if (!Objects.equals(modeloAvion.getEstadoId(), catalogoEstadoService.obtenerActivoId())) {
             throw new RuntimeException(
                     "No se puede usar un modelo de avión inactivo"
             );

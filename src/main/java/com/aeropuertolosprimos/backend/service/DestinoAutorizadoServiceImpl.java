@@ -22,19 +22,18 @@ public class DestinoAutorizadoServiceImpl
 
     private final AeropuertoRepository aeropuertoRepository;
 
+    private final CatalogoEstadoService catalogoEstadoService;
+
     public DestinoAutorizadoServiceImpl(
             DestinoAutorizadoRepository repository,
             AerolineaRepository aerolineaRepository,
-            AeropuertoRepository aeropuertoRepository
+            AeropuertoRepository aeropuertoRepository,
+            CatalogoEstadoService catalogoEstadoService
     ) {
-
         this.repository = repository;
-
-        this.aerolineaRepository =
-                aerolineaRepository;
-
-        this.aeropuertoRepository =
-                aeropuertoRepository;
+        this.aerolineaRepository = aerolineaRepository;
+        this.aeropuertoRepository = aeropuertoRepository;
+        this.catalogoEstadoService = catalogoEstadoService;
     }
 
     @Override
@@ -53,7 +52,7 @@ public class DestinoAutorizadoServiceImpl
                 request.getAeropuertoId()
         );
 
-        destino.setEstadoId(1);
+        destino.setEstadoId(catalogoEstadoService.obtenerActivoId());
 
         destino =
                 repository.save(destino);
@@ -70,7 +69,7 @@ public class DestinoAutorizadoServiceImpl
     ) {
 
         Integer estado =
-                estadoId != null ? estadoId : 1;
+                estadoId != null ? estadoId : catalogoEstadoService.obtenerActivoId();
 
         List<DestinoAutorizado> destinos;
 
@@ -176,7 +175,7 @@ public class DestinoAutorizadoServiceImpl
                                         "Destino autorizado no encontrado"
                                 ));
 
-        destino.setEstadoId(2);
+        destino.setEstadoId(catalogoEstadoService.obtenerInactivoId());
 
         repository.save(destino);
     }

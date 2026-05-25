@@ -19,13 +19,16 @@ public class AeropuertoServiceImpl
 
     private final PuertaEmbarqueRepository puertaRepository;
 
+    private final CatalogoEstadoService catalogoEstadoService;
+
     public AeropuertoServiceImpl(
             AeropuertoRepository aeropuertoRepository,
-            PuertaEmbarqueRepository puertaRepository
+            PuertaEmbarqueRepository puertaRepository,
+            CatalogoEstadoService catalogoEstadoService
     ) {
-
         this.aeropuertoRepository = aeropuertoRepository;
         this.puertaRepository = puertaRepository;
+        this.catalogoEstadoService = catalogoEstadoService;
     }
 
     @Override
@@ -54,7 +57,7 @@ public class AeropuertoServiceImpl
 
         aeropuerto.setPais(paisLimpio);
         aeropuerto.setCiudad(ciudadLimpia);
-        aeropuerto.setEstadoId(1);
+        aeropuerto.setEstadoId(catalogoEstadoService.obtenerActivoId());
 
         aeropuerto =
                 aeropuertoRepository.save(
@@ -79,7 +82,7 @@ public class AeropuertoServiceImpl
     ) {
 
         Integer estado =
-                estadoId != null ? estadoId : 1;
+                estadoId != null ? estadoId : catalogoEstadoService.obtenerActivoId();
 
         List<Aeropuerto> aeropuertos;
 

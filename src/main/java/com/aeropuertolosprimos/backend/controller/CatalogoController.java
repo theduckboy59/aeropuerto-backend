@@ -1,7 +1,9 @@
 package com.aeropuertolosprimos.backend.controller;
 
+import com.aeropuertolosprimos.backend.exception.BusinessException;
 import com.aeropuertolosprimos.backend.model.*;
 import com.aeropuertolosprimos.backend.repository.*;
+import com.aeropuertolosprimos.backend.service.CatalogoEstadoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,6 +15,10 @@ import java.util.List;
 @RestController
 @RequestMapping("/catalogos")
 public class CatalogoController {
+
+    private static final String ESTADO_TRIPULACION_DISPONIBLE = "DISPONIBLE";
+
+    private final CatalogoEstadoService catalogoEstadoService;
 
     private final StatusCatalogRepository statusCatalogRepository;
 
@@ -50,8 +56,7 @@ public class CatalogoController {
         return statusCatalogRepository.findAll();
     }
 
-    @GetMapping("/" +
-            "")
+    @GetMapping("/")
     public List<Aerolinea> listarAerolinea() {
         return aerolineaRepository.findAll();
     }
@@ -89,20 +94,35 @@ public class CatalogoController {
     @GetMapping("/aeropuerto")
     public List<Aeropuerto> listarAeropuertos() {
 
-        return aeropuertoRepository.findByEstadoId(1);
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+
+        return aeropuertoRepository.findByEstadoId(
+                estadoActivoId
+        );
     }
+
     @GetMapping("/tripulacion")
     public List<Tripulacion> listarTripulaciones() {
 
-        return tripulacionRepository
-                .findByEstadoTripulacionId(1);
+        EstadoTripulacion estadoDisponible = estadoTripulacionRepository
+                .findByNombreIgnoreCase(ESTADO_TRIPULACION_DISPONIBLE)
+                .orElseThrow(() ->
+                        new BusinessException("Estado de tripulación DISPONIBLE no encontrado")
+                );
+
+        return tripulacionRepository.findByEstadoTripulacionId(
+                estadoDisponible.getId()
+        );
     }
 
     @GetMapping("/destinos-autorizados")
     public List<DestinoAutorizado> listarDestinosAutorizados() {
 
-        return destinoAutorizadoRepository
-                .findByEstadoId(1);
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+
+        return destinoAutorizadoRepository.findByEstadoId(
+                estadoActivoId
+        );
     }
 
     @GetMapping("/estado-avion")
@@ -112,7 +132,12 @@ public class CatalogoController {
 
     @GetMapping("/avion")
     public List<Avion> listarAviones() {
-        return avionRepository.findByEstadoId(1);
+
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+
+        return avionRepository.findByEstadoId(
+                estadoActivoId
+        );
     }
 
     @GetMapping("/clase-vuelo")
@@ -142,12 +167,22 @@ public class CatalogoController {
 
     @GetMapping("/tipo-segmento-vuelo")
     public List<TipoSegmentoVuelo> listarTipoSegmentoVuelo() {
-        return tipoSegmentoVueloRepository.findByEstadoId(1);
+
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+
+        return tipoSegmentoVueloRepository.findByEstadoId(
+                estadoActivoId
+        );
     }
 
     @GetMapping("/metodo-pago")
     public List<MetodoPago> listarMetodoPago() {
-        return metodoPagoRepository.findByEstadoIdOrderByNombreAsc(1);
+
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+
+        return metodoPagoRepository.findByEstadoIdOrderByNombreAsc(
+                estadoActivoId
+        );
     }
 
     @GetMapping("/estado-abordaje-vuelo")

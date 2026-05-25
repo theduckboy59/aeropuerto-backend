@@ -39,21 +39,22 @@ public interface BoletoRepository extends JpaRepository<Boleto, Integer> {
     );
 
     @Query("""
-            SELECT COUNT(b)
-            FROM Boleto b, BoletoSegmento bs, SegmentoOperado so, SegmentoVuelo sv
-            WHERE b.id = bs.boletoId
-              AND bs.segmentoOperadoId = so.id
-              AND so.segmentoVueloId = sv.id
-              AND b.pasajeroId = :pasajeroId
-              AND b.estadoId = 1
-              AND (:estadoCanceladoId IS NULL OR b.estadoBoletoId <> :estadoCanceladoId)
-              AND sv.fechaSalida = :fechaSalida
-              AND sv.horaSalida = :horaSalida
-            """)
+        SELECT COUNT(b)
+        FROM Boleto b, BoletoSegmento bs, SegmentoOperado so, SegmentoVuelo sv
+        WHERE b.id = bs.boletoId
+          AND bs.segmentoOperadoId = so.id
+          AND so.segmentoVueloId = sv.id
+          AND b.pasajeroId = :pasajeroId
+          AND b.estadoId = :estadoActivoId
+          AND (:estadoCanceladoId IS NULL OR b.estadoBoletoId <> :estadoCanceladoId)
+          AND sv.fechaSalida = :fechaSalida
+          AND sv.horaSalida = :horaSalida
+        """)
     long countBoletosPasajeroMismaFechaHora(
             @Param("pasajeroId") Integer pasajeroId,
             @Param("fechaSalida") LocalDate fechaSalida,
             @Param("horaSalida") LocalTime horaSalida,
+            @Param("estadoActivoId") Integer estadoActivoId,
             @Param("estadoCanceladoId") Integer estadoCanceladoId
     );
 

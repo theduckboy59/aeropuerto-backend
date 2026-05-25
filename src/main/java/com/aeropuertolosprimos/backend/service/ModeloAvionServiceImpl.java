@@ -19,6 +19,7 @@ public class ModeloAvionServiceImpl implements ModeloAvionService {
 
     private final ModeloAvionRepository repository;
     private final SeatConfigurationParser parser;
+    private final CatalogoEstadoService catalogoEstadoService;
 
     @Override
     public Page<ModeloAvionResponse> findAll(
@@ -77,7 +78,11 @@ public class ModeloAvionServiceImpl implements ModeloAvionService {
         entity.setTotalColumnas(request.getTotalColumnas());
         entity.setFilasMin(request.getFilasMin());
         entity.setFilasMax(request.getFilasMax());
-        entity.setEstadoId(request.getEstadoId());
+        entity.setEstadoId(
+                request.getEstadoId() != null
+                        ? request.getEstadoId()
+                        : catalogoEstadoService.obtenerActivoId()
+        );
 
         repository.save(entity);
 
@@ -110,7 +115,9 @@ public class ModeloAvionServiceImpl implements ModeloAvionService {
         entity.setTotalColumnas(request.getTotalColumnas());
         entity.setFilasMin(request.getFilasMin());
         entity.setFilasMax(request.getFilasMax());
-        entity.setEstadoId(request.getEstadoId());
+        if (request.getEstadoId() != null) {
+            entity.setEstadoId(request.getEstadoId());
+        }
 
         repository.save(entity);
 

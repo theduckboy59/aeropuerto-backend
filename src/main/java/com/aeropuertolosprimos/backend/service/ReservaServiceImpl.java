@@ -57,6 +57,8 @@ public class ReservaServiceImpl implements ReservaService {
     private final TipoEquipajeRepository tipoEquipajeRepository;
     private final EstadoEquipajeRepository estadoEquipajeRepository;
 
+    private final CatalogoEstadoService catalogoEstadoService;
+
     private final JdbcTemplate jdbc;
 
     @Override
@@ -144,10 +146,13 @@ public class ReservaServiceImpl implements ReservaService {
                 compradorUserId = pasajero.getUser().getId();
             }
 
+            Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+
             long cruces = boletoRepository.countBoletosPasajeroMismaFechaHora(
                     pasajero.getId(),
                     segmentoVuelo.getFechaSalida(),
                     segmentoVuelo.getHoraSalida(),
+                    estadoActivoId,
                     estadoCanceladoId
             );
 
@@ -213,6 +218,8 @@ public class ReservaServiceImpl implements ReservaService {
             );
         }
 
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+
         Reserva reserva = new Reserva();
 
         reserva.setUserId(compradorUserId);
@@ -222,7 +229,7 @@ public class ReservaServiceImpl implements ReservaService {
         reserva.setSubtotal(subtotal);
         reserva.setRecargoTotal(recargoTotal);
         reserva.setTotal(subtotal.add(recargoTotal));
-        reserva.setEstadoId(1);
+        reserva.setEstadoId(estadoActivoId);
 
         reserva = reservaRepository.save(reserva);
 
@@ -279,7 +286,7 @@ public class ReservaServiceImpl implements ReservaService {
             boleto.setPrecioBase(precioBase);
             boleto.setRecargoEquipaje(BigDecimal.ZERO);
             boleto.setTotal(precioBase.add(recargoAsiento));
-            boleto.setEstadoId(1);
+            boleto.setEstadoId(estadoActivoId);
 
             boleto = boletoRepository.save(boleto);
 
@@ -367,12 +374,14 @@ public class ReservaServiceImpl implements ReservaService {
         pasajeroRepository.findById(pasajeroId)
                 .orElseThrow(() -> new BusinessException("Pasajero no encontrado"));
 
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+
         return reservaPasajeroRepository
-                .findByPasajeroIdAndEstadoIdOrderByIdDesc(pasajeroId, 1)
+                .findByPasajeroIdAndEstadoIdOrderByIdDesc(pasajeroId, estadoActivoId)
                 .stream()
                 .map(rp -> reservaRepository.findById(rp.getReservaId()).orElse(null))
                 .filter(Objects::nonNull)
-                .filter(r -> Objects.equals(r.getEstadoId(), 1))
+                .filter(r -> Objects.equals(r.getEstadoId(), estadoActivoId))
                 .map(this::mapResponse)
                 .toList();
     }
@@ -600,6 +609,8 @@ public class ReservaServiceImpl implements ReservaService {
             return existente;
         }
 
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+
         Pasajero pasajero = new Pasajero();
 
         pasajero.setUser(null);
@@ -611,7 +622,7 @@ public class ReservaServiceImpl implements ReservaService {
         pasajero.setTelefono(limpiarTexto(item.getTelefono()));
         pasajero.setTelefonoEmergencia(item.getTelefonoEmergencia().trim());
         pasajero.setDireccion(limpiarTexto(item.getDireccion()));
-        pasajero.setEstadoId(1);
+        pasajero.setEstadoId(estadoActivoId);
 
         pasajero = pasajeroRepository.save(pasajero);
 
