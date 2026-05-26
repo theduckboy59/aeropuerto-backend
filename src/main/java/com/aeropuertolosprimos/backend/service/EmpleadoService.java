@@ -21,6 +21,10 @@ public interface EmpleadoService {
             Integer areaId
     );
 
+    List<EmpleadoResponse> listarDisponiblesParaTripulacion(
+            Integer aerolineaId
+    );
+
     EmpleadoResponse obtenerPorId(Integer id);
 
     EmpleadoResponse actualizar(Integer id, EmpleadoRequest request);

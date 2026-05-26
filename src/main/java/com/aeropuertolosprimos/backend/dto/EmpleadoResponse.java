@@ -15,6 +15,8 @@ public class EmpleadoResponse {
     private String email;
 
     private Integer tipoEmpleadoId;
+    private String tipoEmpleadoNombre;
+
     private Integer aerolineaId;
     private String aerolineaNombre;
 
@@ -34,4 +36,6 @@ public class EmpleadoResponse {
     private LocalDate fechaVencimientoLicencia;
 
     private Integer estadoId;
+
+    private Boolean disponible;
 }

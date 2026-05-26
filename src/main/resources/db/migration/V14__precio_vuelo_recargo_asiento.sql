@@ -61,25 +61,30 @@ ORDER BY id
     LIMIT 1;
 
 IF v_vuelo_programado_id IS NULL THEN
-        RAISE EXCEPTION 'No existe ningún vuelo_programado para insertar precios';
+        RAISE NOTICE 'No existe ningún vuelo_programado. Se omite inserción de precios y recargos.';
+        RETURN;
 END IF;
 
 SELECT id
 INTO v_clase_economica_id
 FROM clase_vuelo
-WHERE UPPER(nombre) = 'ECONOMICA';
+WHERE UPPER(nombre) = 'ECONOMICA'
+    LIMIT 1;
 
 IF v_clase_economica_id IS NULL THEN
-        RAISE EXCEPTION 'No existe la clase ECONOMICA';
+        RAISE NOTICE 'No existe la clase ECONOMICA. Se omite inserción de precios y recargos.';
+        RETURN;
 END IF;
 
 SELECT id
 INTO v_clase_ejecutiva_id
 FROM clase_vuelo
-WHERE UPPER(nombre) = 'EJECUTIVA';
+WHERE UPPER(nombre) = 'EJECUTIVA'
+    LIMIT 1;
 
 IF v_clase_ejecutiva_id IS NULL THEN
-        RAISE EXCEPTION 'No existe la clase EJECUTIVA';
+        RAISE NOTICE 'No existe la clase EJECUTIVA. Se omite inserción de precios y recargos.';
+        RETURN;
 END IF;
 
 INSERT INTO precio_vuelo (

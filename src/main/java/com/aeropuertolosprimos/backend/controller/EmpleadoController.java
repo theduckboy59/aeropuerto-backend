@@ -1,4 +1,5 @@
 package com.aeropuertolosprimos.backend.controller;
+
 import lombok.RequiredArgsConstructor;
 
 import com.aeropuertolosprimos.backend.dto.EmpleadoRequest;
@@ -40,6 +41,15 @@ public class EmpleadoController {
                 rolId,
                 nivelAccesoId,
                 areaId
+        );
+    }
+
+    @GetMapping("/empleados/disponibles-tripulacion")
+    public List<EmpleadoResponse> listarDisponiblesParaTripulacion(
+            @RequestParam Integer aerolineaId
+    ) {
+        return service.listarDisponiblesParaTripulacion(
+                aerolineaId
         );
     }
 

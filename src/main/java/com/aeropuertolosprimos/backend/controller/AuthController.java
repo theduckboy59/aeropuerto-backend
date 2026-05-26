@@ -29,7 +29,9 @@ public class AuthController {
     private final JwtService jwtService;
 
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<ApiResponse> register(
+            @Valid @RequestBody RegisterRequest request
+    ) {
 
         service.register(request);
 
@@ -43,7 +45,9 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<LoginResponse> login(
+            @RequestBody LoginRequest request
+    ) {
 
         Authentication auth = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -60,8 +64,13 @@ public class AuthController {
                 .map(GrantedAuthority::getAuthority)
                 .orElse("ROLE_CLIENTE");
 
-        String token = jwtService.generateToken(user.getUsername(), role);
+        String token = jwtService.generateToken(
+                user.getUsername(),
+                role
+        );
 
-        return ResponseEntity.ok(new LoginResponse(token));
+        return ResponseEntity.ok(
+                new LoginResponse(token)
+        );
     }
 }

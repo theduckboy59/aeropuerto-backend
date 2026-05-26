@@ -6,18 +6,18 @@ import com.aeropuertolosprimos.backend.dto.EmpleadoRequest;
 import com.aeropuertolosprimos.backend.dto.EmpleadoResponse;
 import com.aeropuertolosprimos.backend.exception.BusinessException;
 import com.aeropuertolosprimos.backend.exception.ResourceNotFoundException;
+import com.aeropuertolosprimos.backend.model.Aerolinea;
 import com.aeropuertolosprimos.backend.model.Empleado;
 import com.aeropuertolosprimos.backend.model.TipoEmpleado;
 import com.aeropuertolosprimos.backend.model.User;
+import com.aeropuertolosprimos.backend.repository.AerolineaRepository;
+import com.aeropuertolosprimos.backend.repository.DisponibilidadEmpleadoRepository;
 import com.aeropuertolosprimos.backend.repository.EmpleadoRepository;
 import com.aeropuertolosprimos.backend.repository.TipoEmpleadoRepository;
 import com.aeropuertolosprimos.backend.repository.UserRepository;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import com.aeropuertolosprimos.backend.model.Aerolinea;
-import com.aeropuertolosprimos.backend.repository.AerolineaRepository;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -26,13 +26,17 @@ import java.util.List;
 @RequiredArgsConstructor
 public class EmpleadoServiceImpl implements EmpleadoService {
 
+    private static final String TIPO_PILOTO = "PILOTO";
+    private static final String TIPO_COPILOTO = "COPILOTO";
+    private static final String TIPO_CABINA = "CABINA";
+    private static final String TIPO_INGENIERO_VUELO = "INGENIERO_VUELO";
+
     private final EmpleadoRepository empleadoRepository;
     private final UserRepository userRepository;
     private final TipoEmpleadoRepository tipoEmpleadoRepository;
     private final PasswordEncoder passwordEncoder;
-
     private final AerolineaRepository aerolineaRepository;
-
+    private final DisponibilidadEmpleadoRepository disponibilidadRepository;
     private final CatalogoEstadoService catalogoEstadoService;
 
     @Override
@@ -50,16 +54,19 @@ public class EmpleadoServiceImpl implements EmpleadoService {
                     throw new BusinessException("El nombre de usuario ya está registrado");
                 });
 
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+
         User user = new User();
         user.setUsername(request.getUsername().trim());
         user.setEmail(request.getEmail().trim());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRolId(request.getRolId());
+        user.setEstadoId(estadoActivoId);
 
         user = userRepository.save(user);
 
         Empleado empleado = new Empleado();
-        empleado.setEstadoId(catalogoEstadoService.obtenerActivoId());
+        empleado.setEstadoId(estadoActivoId);
         empleado.setUser(user);
         empleado.setTipoEmpleadoId(request.getTipoEmpleadoId());
         empleado.setCodigoEmpleado(generarCodigoEmpleado(request.getTipoEmpleadoId()));
@@ -135,6 +142,35 @@ public class EmpleadoServiceImpl implements EmpleadoService {
 
         return empleadoRepository.findAll(spec)
                 .stream()
+                .map(this::convertirResponse)
+                .toList();
+    }
+
+    @Override
+    public List<EmpleadoResponse> listarDisponiblesParaTripulacion(
+            Integer aerolineaId
+    ) {
+
+        if (aerolineaId == null) {
+            throw new BusinessException("Debe seleccionar una aerolínea");
+        }
+
+        if (!aerolineaRepository.existsById(aerolineaId)) {
+            throw new ResourceNotFoundException("Aerolínea no encontrada");
+        }
+
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+
+        Specification<Empleado> spec = (root, query, cb) ->
+                cb.and(
+                        cb.equal(root.get("estadoId"), estadoActivoId),
+                        cb.equal(root.get("aerolineaId"), aerolineaId)
+                );
+
+        return empleadoRepository.findAll(spec)
+                .stream()
+                .filter(this::esTipoPermitidoParaTripulacion)
+                .filter(this::estaDisponibleParaTripulacion)
                 .map(this::convertirResponse)
                 .toList();
     }
@@ -273,6 +309,72 @@ public class EmpleadoServiceImpl implements EmpleadoService {
         return prefijo + "-" + String.format("%04d", total + 1);
     }
 
+    private boolean esTipoPermitidoParaTripulacion(Empleado empleado) {
+
+        if (empleado == null || empleado.getTipoEmpleadoId() == null) {
+            return false;
+        }
+
+        String tipo = obtenerNombreTipoEmpleado(empleado.getTipoEmpleadoId());
+
+        if (tipo == null) {
+            return false;
+        }
+
+        String normalizado = normalizarTipo(tipo);
+
+        return normalizado.equals(TIPO_PILOTO) ||
+                normalizado.equals(TIPO_COPILOTO) ||
+                normalizado.equals(TIPO_CABINA) ||
+                normalizado.equals(TIPO_INGENIERO_VUELO);
+    }
+
+    private boolean estaDisponibleParaTripulacion(Empleado empleado) {
+
+        if (empleado == null || empleado.getId() == null) {
+            return false;
+        }
+
+        return obtenerDisponibilidad(empleado.getId());
+    }
+
+    private Boolean obtenerDisponibilidad(Integer empleadoId) {
+
+        if (empleadoId == null) {
+            return false;
+        }
+
+        return disponibilidadRepository.findByEmpleadoId(empleadoId)
+                .map(disponibilidad ->
+                        !Boolean.FALSE.equals(disponibilidad.getDisponible())
+                )
+                .orElse(true);
+    }
+
+    private String obtenerNombreTipoEmpleado(Integer tipoEmpleadoId) {
+
+        if (tipoEmpleadoId == null) {
+            return null;
+        }
+
+        return tipoEmpleadoRepository.findById(tipoEmpleadoId)
+                .map(TipoEmpleado::getNombre)
+                .orElse(null);
+    }
+
+    private String normalizarTipo(String value) {
+
+        if (value == null) {
+            return "";
+        }
+
+        return value
+                .trim()
+                .toUpperCase()
+                .replace(" ", "_")
+                .replace("-", "_");
+    }
+
     private EmpleadoResponse convertirResponse(Empleado empleado) {
 
         User user = empleado.getUser();
@@ -292,11 +394,17 @@ public class EmpleadoServiceImpl implements EmpleadoService {
         response.setUserId(user.getId());
         response.setUsername(user.getUsername());
         response.setEmail(user.getEmail());
+
         response.setTipoEmpleadoId(empleado.getTipoEmpleadoId());
+        response.setTipoEmpleadoNombre(
+                obtenerNombreTipoEmpleado(empleado.getTipoEmpleadoId())
+        );
+
         response.setAerolineaId(empleado.getAerolineaId());
         response.setAerolineaNombre(
                 obtenerNombreAerolinea(empleado.getAerolineaId())
         );
+
         response.setCodigoEmpleado(empleado.getCodigoEmpleado());
         response.setNombreCompleto(empleado.getNombreCompleto());
         response.setFechaIngreso(empleado.getFechaIngreso());
@@ -308,6 +416,9 @@ public class EmpleadoServiceImpl implements EmpleadoService {
         response.setLicenciaId(empleado.getLicenciaId());
         response.setFechaVencimientoLicencia(empleado.getFechaVencimientoLicencia());
         response.setEstadoId(empleado.getEstadoId());
+        response.setDisponible(
+                obtenerDisponibilidad(empleado.getId())
+        );
 
         return response;
     }
