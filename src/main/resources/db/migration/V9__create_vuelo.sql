@@ -1,45 +1,25 @@
-/* ============================================================
-   V9 - VUELOS + VUELOS PROGRAMADOS
-   Requiere tablas existentes:
-   - status_catalog
-   - aerolinea
-   - aeropuerto
-   - puerta_embarque
-   - destino_autorizado
-   ============================================================ */
-
-
-/* ============================================================
-   CATÁLOGO FUTURO: ESTADO VUELO
-   Se usará después en vuelo_operado.
-   ============================================================ */
-
 CREATE TABLE estado_vuelo (
-    id SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                              id SERIAL PRIMARY KEY,
+                              nombre VARCHAR(100) NOT NULL,
+                              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT uk_estado_vuelo_nombre UNIQUE (nombre),
-    CONSTRAINT chk_estado_vuelo_nombre_no_vacio
-        CHECK (BTRIM(nombre) <> '')
+                              CONSTRAINT uk_estado_vuelo_nombre UNIQUE (nombre),
+                              CONSTRAINT chk_estado_vuelo_nombre_no_vacio
+                                  CHECK (BTRIM(nombre) <> '')
 );
 
-INSERT INTO estado_vuelo (id, nombre)
+INSERT INTO estado_vuelo (nombre)
 VALUES
-    (1, 'PROGRAMADO'),
-    (2, 'ABORDANDO'),
-    (3, 'EN_VUELO'),
-    (4, 'ATERRIZADO'),
-    (5, 'RETRASADO'),
-    (6, 'CANCELADO'),
-    (7, 'EN_ESCALA'),
-    (8, 'FINALIZADO');
+    ('PROGRAMADO'),
+    ('ABORDANDO'),
+    ('EN_VUELO'),
+    ('ATERRIZADO'),
+    ('RETRASADO'),
+    ('CANCELADO'),
+    ('EN_ESCALA'),
+    ('FINALIZADO');
 
-SELECT setval(
-               pg_get_serial_sequence('estado_vuelo', 'id'),
-               (SELECT MAX(id) FROM estado_vuelo)
-       );
 
 /* ============================================================
    CATÁLOGO FUTURO: TIPO SEGMENTO VUELO
@@ -56,7 +36,7 @@ CREATE TABLE tipo_segmento_vuelo (
                                      permite_embarque BOOLEAN NOT NULL DEFAULT FALSE,
                                      detiene_flujo_si_cancela BOOLEAN NOT NULL DEFAULT TRUE,
 
-                                     estado_id INT NOT NULL DEFAULT 1,
+                                     estado_id INT NOT NULL,
 
                                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -71,32 +51,44 @@ CREATE TABLE tipo_segmento_vuelo (
                                          CHECK (BTRIM(nombre) <> '')
 );
 
+DO $$
+DECLARE
+v_activo_id INTEGER;
+BEGIN
+SELECT id
+INTO v_activo_id
+FROM status_catalog
+WHERE UPPER(name) = 'ACTIVO';
+
+IF v_activo_id IS NULL THEN
+        RAISE EXCEPTION 'No existe el estado ACTIVO en status_catalog';
+END IF;
+
+EXECUTE format(
+        'ALTER TABLE tipo_segmento_vuelo ALTER COLUMN estado_id SET DEFAULT %s',
+        v_activo_id
+        );
+END $$;
+
 CREATE INDEX idx_tipo_segmento_vuelo_estado_id
     ON tipo_segmento_vuelo(estado_id);
 
 INSERT INTO tipo_segmento_vuelo (
-    id,
     nombre,
     requiere_nuevo_asiento,
     permite_embarque,
-    detiene_flujo_si_cancela,
-    estado_id
+    detiene_flujo_si_cancela
 )
 VALUES
-    (1, 'DIRECTO', FALSE, FALSE, TRUE, 1),
-    (2, 'TECNICO', FALSE, FALSE, TRUE, 1),
-    (3, 'CAMBIO_AVION', TRUE, TRUE, TRUE, 1);
+    ('DIRECTO', FALSE, FALSE, TRUE),
+    ('TECNICO', FALSE, FALSE, TRUE),
+    ('CAMBIO_AVION', TRUE, TRUE, TRUE);
 
-SELECT setval(
-               pg_get_serial_sequence('tipo_segmento_vuelo', 'id'),
-               (SELECT MAX(id) FROM tipo_segmento_vuelo)
-       );
+
 /* ============================================================
    VUELO
    Cabecera del vuelo.
-   Borrado lógico:
-   - ACTIVO = status_catalog.id 1
-   - INACTIVO = status_catalog.id 2
+   Borrado lógico controlado por status_catalog.
    ============================================================ */
 
 CREATE TABLE vuelo (
@@ -106,7 +98,7 @@ CREATE TABLE vuelo (
 
                        codigo_vuelo VARCHAR(100) NULL,
 
-                       estado_id INT NULL,
+                       estado_id INT NOT NULL,
 
                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
@@ -130,6 +122,25 @@ CREATE TABLE vuelo (
                                REFERENCES status_catalog(id)
 );
 
+DO $$
+DECLARE
+v_activo_id INTEGER;
+BEGIN
+SELECT id
+INTO v_activo_id
+FROM status_catalog
+WHERE UPPER(name) = 'ACTIVO';
+
+IF v_activo_id IS NULL THEN
+        RAISE EXCEPTION 'No existe el estado ACTIVO en status_catalog';
+END IF;
+
+EXECUTE format(
+        'ALTER TABLE vuelo ALTER COLUMN estado_id SET DEFAULT %s',
+        v_activo_id
+        );
+END $$;
+
 CREATE INDEX idx_vuelo_aerolinea_id
     ON vuelo(aerolinea_id);
 
@@ -142,9 +153,6 @@ CREATE INDEX idx_vuelo_estado_id
    Planificación del vuelo.
    Las puertas de embarque NO son FK.
    Se guardan como código porque salen del aeropuerto.
-   Ejemplo:
-   aeropuerto_salida_id = 1
-   puerta_embarque_salida = 'A1'
    ============================================================ */
 
 CREATE TABLE vuelo_programado (

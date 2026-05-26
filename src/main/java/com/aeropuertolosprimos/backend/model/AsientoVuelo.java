@@ -3,10 +3,13 @@ package com.aeropuertolosprimos.backend.model;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import org.hibernate.annotations.DynamicInsert;
+
 import java.time.LocalDateTime;
 
 @Data
 @Entity
+@DynamicInsert
 @Table(name = "asiento_vuelo")
 public class AsientoVuelo {
 
@@ -33,10 +36,6 @@ public class AsientoVuelo {
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
-
-        if (this.estadoAsientoId == null) {
-            this.estadoAsientoId = 1;
-        }
     }
 
     @PreUpdate

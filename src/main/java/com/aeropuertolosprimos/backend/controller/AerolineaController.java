@@ -1,5 +1,7 @@
 package com.aeropuertolosprimos.backend.controller;
 
+import lombok.RequiredArgsConstructor;
+
 import com.aeropuertolosprimos.backend.dto.AerolineaRequest;
 import com.aeropuertolosprimos.backend.dto.AerolineaResponse;
 import com.aeropuertolosprimos.backend.service.AerolineaService;
@@ -9,15 +11,10 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/aerolineas")
+@RequiredArgsConstructor
 public class AerolineaController {
 
     private final AerolineaService service;
-
-    public AerolineaController(
-            AerolineaService service
-    ) {
-        this.service = service;
-    }
 
     @PostMapping
     public AerolineaResponse crear(

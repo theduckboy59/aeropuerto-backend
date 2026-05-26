@@ -1,5 +1,7 @@
 package com.aeropuertolosprimos.backend.service;
 
+
+import lombok.RequiredArgsConstructor;
 import com.aeropuertolosprimos.backend.dto.DestinoAutorizadoRequest;
 import com.aeropuertolosprimos.backend.dto.DestinoAutorizadoResponse;
 import com.aeropuertolosprimos.backend.model.Aerolinea;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class DestinoAutorizadoServiceImpl
         implements DestinoAutorizadoService {
 
@@ -24,17 +27,6 @@ public class DestinoAutorizadoServiceImpl
 
     private final CatalogoEstadoService catalogoEstadoService;
 
-    public DestinoAutorizadoServiceImpl(
-            DestinoAutorizadoRepository repository,
-            AerolineaRepository aerolineaRepository,
-            AeropuertoRepository aeropuertoRepository,
-            CatalogoEstadoService catalogoEstadoService
-    ) {
-        this.repository = repository;
-        this.aerolineaRepository = aerolineaRepository;
-        this.aeropuertoRepository = aeropuertoRepository;
-        this.catalogoEstadoService = catalogoEstadoService;
-    }
 
     @Override
     public DestinoAutorizadoResponse crear(

@@ -1,5 +1,7 @@
 package com.aeropuertolosprimos.backend.service;
 
+import lombok.RequiredArgsConstructor;
+
 import com.aeropuertolosprimos.backend.dto.EmpleadoRequest;
 import com.aeropuertolosprimos.backend.dto.EmpleadoResponse;
 import com.aeropuertolosprimos.backend.exception.BusinessException;
@@ -21,6 +23,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class EmpleadoServiceImpl implements EmpleadoService {
 
     private final EmpleadoRepository empleadoRepository;
@@ -31,22 +34,6 @@ public class EmpleadoServiceImpl implements EmpleadoService {
     private final AerolineaRepository aerolineaRepository;
 
     private final CatalogoEstadoService catalogoEstadoService;
-
-    public EmpleadoServiceImpl(
-            EmpleadoRepository empleadoRepository,
-            UserRepository userRepository,
-            TipoEmpleadoRepository tipoEmpleadoRepository,
-            AerolineaRepository aerolineaRepository,
-            PasswordEncoder passwordEncoder,
-            CatalogoEstadoService catalogoEstadoService
-    ) {
-        this.empleadoRepository = empleadoRepository;
-        this.userRepository = userRepository;
-        this.tipoEmpleadoRepository = tipoEmpleadoRepository;
-        this.aerolineaRepository = aerolineaRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.catalogoEstadoService = catalogoEstadoService;
-    }
 
     @Override
     public EmpleadoResponse crear(EmpleadoRequest request) {

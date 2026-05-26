@@ -58,8 +58,9 @@ public class Boleto {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
 
-        if (fechaEmision == null) fechaEmision = LocalDateTime.now();
-        if (estadoId == null) estadoId = 1;
+        if (fechaEmision == null) {
+            fechaEmision = LocalDateTime.now();
+        }
     }
 
     @PreUpdate

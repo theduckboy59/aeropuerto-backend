@@ -1,5 +1,7 @@
 package com.aeropuertolosprimos.backend.service;
 
+import lombok.RequiredArgsConstructor;
+
 import com.aeropuertolosprimos.backend.dto.*;
 import com.aeropuertolosprimos.backend.model.Aeropuerto;
 import com.aeropuertolosprimos.backend.model.PuertaEmbarque;
@@ -12,6 +14,7 @@ import java.util.List;
 import java.util.Locale;
 
 @Service
+@RequiredArgsConstructor
 public class AeropuertoServiceImpl
         implements AeropuertoService {
 
@@ -20,16 +23,6 @@ public class AeropuertoServiceImpl
     private final PuertaEmbarqueRepository puertaRepository;
 
     private final CatalogoEstadoService catalogoEstadoService;
-
-    public AeropuertoServiceImpl(
-            AeropuertoRepository aeropuertoRepository,
-            PuertaEmbarqueRepository puertaRepository,
-            CatalogoEstadoService catalogoEstadoService
-    ) {
-        this.aeropuertoRepository = aeropuertoRepository;
-        this.puertaRepository = puertaRepository;
-        this.catalogoEstadoService = catalogoEstadoService;
-    }
 
     @Override
     public AeropuertoResponse crear(
@@ -186,15 +179,18 @@ public class AeropuertoServiceImpl
                         aeropuerto
                 );
 
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+        Integer estadoInactivoId = catalogoEstadoService.obtenerInactivoId();
+
         List<PuertaEmbarque> puertasActuales =
                 puertaRepository
                         .findByAeropuertoIdAndEstadoId(
                                 id,
-                                1
+                                estadoActivoId
                         );
 
         puertasActuales.forEach(p -> {
-            p.setEstadoId(2);
+            p.setEstadoId(estadoInactivoId);
             puertaRepository.save(p);
         });
 
@@ -220,7 +216,9 @@ public class AeropuertoServiceImpl
                                         "Aeropuerto no encontrado"
                                 ));
 
-        aeropuerto.setEstadoId(2);
+        Integer estadoInactivoId = catalogoEstadoService.obtenerInactivoId();
+
+        aeropuerto.setEstadoId(estadoInactivoId);
 
         aeropuertoRepository.save(
                 aeropuerto
@@ -230,11 +228,11 @@ public class AeropuertoServiceImpl
                 puertaRepository
                         .findByAeropuertoIdAndEstadoId(
                                 id,
-                                1
+                                catalogoEstadoService.obtenerActivoId()
                         );
 
         puertas.forEach(p -> {
-            p.setEstadoId(2);
+            p.setEstadoId(estadoInactivoId);
             puertaRepository.save(p);
         });
     }
@@ -266,7 +264,7 @@ public class AeropuertoServiceImpl
                     item.getCodigo().trim().toUpperCase(Locale.ROOT)
             );
 
-            puerta.setEstadoId(1);
+            puerta.setEstadoId(catalogoEstadoService.obtenerActivoId());
 
             puertaRepository.save(
                     puerta
@@ -450,7 +448,7 @@ public class AeropuertoServiceImpl
                 puertaRepository
                         .findByAeropuertoIdAndEstadoId(
                                 aeropuerto.getId(),
-                                1
+                                catalogoEstadoService.obtenerActivoId()
                         )
                         .stream()
                         .map(p -> {

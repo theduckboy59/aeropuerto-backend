@@ -1,5 +1,7 @@
 package com.aeropuertolosprimos.backend.service;
 
+import lombok.RequiredArgsConstructor;
+
 import com.aeropuertolosprimos.backend.dto.RegisterRequest;
 import com.aeropuertolosprimos.backend.exception.BusinessException;
 import com.aeropuertolosprimos.backend.exception.ResourceNotFoundException;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
@@ -21,17 +24,6 @@ public class AuthServiceImpl implements AuthService {
     private final RolRepository rolRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public AuthServiceImpl(
-            UserRepository userRepository,
-            PasajeroRepository pasajeroRepository,
-            RolRepository rolRepository,
-            PasswordEncoder passwordEncoder
-    ) {
-        this.userRepository = userRepository;
-        this.pasajeroRepository = pasajeroRepository;
-        this.rolRepository = rolRepository;
-        this.passwordEncoder = passwordEncoder;
-    }
 
     @Override
     @Transactional

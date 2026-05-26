@@ -4,7 +4,7 @@ CREATE TABLE disponibilidad_empleado (
                                          fecha DATE,
                                          hora_inicio TIME,
                                          hora_fin TIME,
-                                         disponible BOOLEAN DEFAULT true,
+                                         disponible BOOLEAN NOT NULL DEFAULT true,
 
                                          CONSTRAINT fk_disponibilidad_empleado
                                              FOREIGN KEY (empleado_id)
@@ -26,7 +26,7 @@ CREATE TABLE tripulacion (
                              id SERIAL PRIMARY KEY,
                              codigo VARCHAR(20) UNIQUE NOT NULL,
                              aerolinea_id INT,
-                             estado_tripulacion_id INT,
+                             estado_tripulacion_id INT NOT NULL,
                              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
@@ -38,6 +38,25 @@ CREATE TABLE tripulacion (
                                  FOREIGN KEY (estado_tripulacion_id)
                                      REFERENCES estado_tripulacion(id)
 );
+
+DO $$
+DECLARE
+v_disponible_id INTEGER;
+BEGIN
+SELECT id
+INTO v_disponible_id
+FROM estado_tripulacion
+WHERE UPPER(nombre) = 'DISPONIBLE';
+
+IF v_disponible_id IS NULL THEN
+        RAISE EXCEPTION 'No existe el estado DISPONIBLE en estado_tripulacion';
+END IF;
+
+EXECUTE format(
+        'ALTER TABLE tripulacion ALTER COLUMN estado_tripulacion_id SET DEFAULT %s',
+        v_disponible_id
+        );
+END $$;
 
 CREATE TABLE tripulacion_detalle (
                                      id SERIAL PRIMARY KEY,
@@ -61,7 +80,6 @@ CREATE OR REPLACE FUNCTION fn_crear_disponibilidad_empleado()
 RETURNS TRIGGER AS
 $$
 BEGIN
-
 INSERT INTO disponibilidad_empleado (
     empleado_id,
     disponible
@@ -72,10 +90,8 @@ VALUES (
        );
 
 RETURN NEW;
-
 END;
 $$ LANGUAGE plpgsql;
-
 
 CREATE TRIGGER trg_crear_disponibilidad_empleado
     AFTER INSERT ON empleado

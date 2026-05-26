@@ -1,5 +1,7 @@
 package com.aeropuertolosprimos.backend.service;
 
+import lombok.RequiredArgsConstructor;
+
 import com.aeropuertolosprimos.backend.dto.TripulacionDetalleResponse;
 import com.aeropuertolosprimos.backend.dto.TripulacionRequest;
 import com.aeropuertolosprimos.backend.dto.TripulacionResponse;
@@ -28,10 +30,10 @@ import java.util.List;
 import java.util.Set;
 
 @Service
+@RequiredArgsConstructor
 public class TripulacionServiceImpl implements TripulacionService {
 
-    private static final Integer ESTADO_ACTIVO = 1;
-    private static final Integer ESTADO_TRIPULACION_DISPONIBLE = 1;
+    private static final String ESTADO_TRIPULACION_DISPONIBLE_NOMBRE = "DISPONIBLE";
 
     private final TripulacionRepository tripulacionRepository;
     private final TripulacionDetalleRepository detalleRepository;
@@ -42,25 +44,7 @@ public class TripulacionServiceImpl implements TripulacionService {
     private final AerolineaRepository aerolineaRepository;
     private final EstadoTripulacionRepository estadoTripulacionRepository;
 
-    public TripulacionServiceImpl(
-            TripulacionRepository tripulacionRepository,
-            TripulacionDetalleRepository detalleRepository,
-            EmpleadoRepository empleadoRepository,
-            DisponibilidadEmpleadoRepository disponibilidadRepository,
-            TipoEmpleadoRepository tipoEmpleadoRepository,
-            LicenciaRepository licenciaRepository,
-            AerolineaRepository aerolineaRepository,
-            EstadoTripulacionRepository estadoTripulacionRepository
-    ) {
-        this.tripulacionRepository = tripulacionRepository;
-        this.detalleRepository = detalleRepository;
-        this.empleadoRepository = empleadoRepository;
-        this.disponibilidadRepository = disponibilidadRepository;
-        this.tipoEmpleadoRepository = tipoEmpleadoRepository;
-        this.licenciaRepository = licenciaRepository;
-        this.aerolineaRepository = aerolineaRepository;
-        this.estadoTripulacionRepository = estadoTripulacionRepository;
-    }
+    private final CatalogoEstadoService catalogoEstadoService;
 
     @Override
     public Page<TripulacionResponse> findAll(
@@ -139,7 +123,7 @@ public class TripulacionServiceImpl implements TripulacionService {
 
         tripulacion.setCodigo(generarCodigo());
         tripulacion.setAerolineaId(request.getAerolineaId());
-        tripulacion.setEstadoTripulacionId(ESTADO_TRIPULACION_DISPONIBLE);
+        tripulacion.setEstadoTripulacionId(obtenerEstadoTripulacionDisponibleId());
 
         tripulacion = tripulacionRepository.save(tripulacion);
 
@@ -184,7 +168,7 @@ public class TripulacionServiceImpl implements TripulacionService {
         tripulacion = tripulacionRepository.save(tripulacion);
 
         boolean disponible =
-                estadoTripulacionId.equals(ESTADO_TRIPULACION_DISPONIBLE);
+                estadoTripulacionId.equals(obtenerEstadoTripulacionDisponibleId());
 
         detalleRepository.findByTripulacionId(tripulacion.getId())
                 .forEach(detalle ->
@@ -233,7 +217,7 @@ public class TripulacionServiceImpl implements TripulacionService {
         return tripulacionRepository
                 .findByAerolineaIdAndEstadoTripulacionId(
                         aerolineaId,
-                        ESTADO_TRIPULACION_DISPONIBLE
+                        obtenerEstadoTripulacionDisponibleId()
                 )
                 .stream()
                 .map(this::convertirResponse)
@@ -260,7 +244,7 @@ public class TripulacionServiceImpl implements TripulacionService {
                 );
 
         if (tripulacion.getEstadoTripulacionId() == null ||
-                !tripulacion.getEstadoTripulacionId().equals(ESTADO_TRIPULACION_DISPONIBLE)) {
+                !tripulacion.getEstadoTripulacionId().equals(obtenerEstadoTripulacionDisponibleId())) {
 
             throw new RuntimeException("Solo se pueden editar tripulaciones disponibles");
         }
@@ -359,6 +343,15 @@ public class TripulacionServiceImpl implements TripulacionService {
         return convertirResponse(tripulacion);
     }
 
+    private Integer obtenerEstadoTripulacionDisponibleId() {
+        return estadoTripulacionRepository
+                .findByNombreIgnoreCase(ESTADO_TRIPULACION_DISPONIBLE_NOMBRE)
+                .orElseThrow(() ->
+                        new RuntimeException("Estado de tripulación DISPONIBLE no encontrado")
+                )
+                .getId();
+    }
+
     private Empleado validarEmpleadoBaseParaActualizar(
             Integer empleadoId,
             Integer aerolineaId,
@@ -371,7 +364,7 @@ public class TripulacionServiceImpl implements TripulacionService {
                 );
 
         if (empleado.getEstadoId() == null ||
-                !empleado.getEstadoId().equals(ESTADO_ACTIVO)) {
+                !empleado.getEstadoId().equals(catalogoEstadoService.obtenerActivoId())) {
 
             throw new RuntimeException("Empleado inactivo");
         }
@@ -450,7 +443,7 @@ public class TripulacionServiceImpl implements TripulacionService {
                 );
 
         if (empleado.getEstadoId() == null ||
-                !empleado.getEstadoId().equals(ESTADO_ACTIVO)) {
+                !empleado.getEstadoId().equals(catalogoEstadoService.obtenerActivoId())) {
 
             throw new RuntimeException("Empleado inactivo");
         }

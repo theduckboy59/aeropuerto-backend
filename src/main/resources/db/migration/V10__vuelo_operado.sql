@@ -1,5 +1,3 @@
-
-
 CREATE TABLE segmento_vuelo (
                                 id SERIAL PRIMARY KEY,
 
@@ -21,7 +19,7 @@ CREATE TABLE segmento_vuelo (
 
                                 hora_llegada TIME NULL,
 
-                                estado_id INT NOT NULL DEFAULT 1,
+                                estado_id INT NOT NULL,
 
                                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
@@ -93,15 +91,14 @@ CREATE TABLE segmento_vuelo (
 );
 
 
-
 CREATE TABLE vuelo_operado (
                                id SERIAL PRIMARY KEY,
 
                                vuelo_programado_id INT NOT NULL,
 
-                               tipo_segmento_vuelo_id INT NOT NULL DEFAULT 1,
+                               tipo_segmento_vuelo_id INT NOT NULL,
 
-                               estado_vuelo_id INT NOT NULL DEFAULT 1,
+                               estado_vuelo_id INT NOT NULL,
 
                                cantidad_segmentos INT NOT NULL DEFAULT 1,
 
@@ -135,19 +132,6 @@ CREATE TABLE vuelo_operado (
                                    CHECK (
                                        segmento_actual_orden >= 1
                                            AND segmento_actual_orden <= cantidad_segmentos
-                                       ),
-
-                               CONSTRAINT chk_vuelo_operado_tipo_segmentos
-                                   CHECK (
-                                       (
-                                           tipo_segmento_vuelo_id = 1
-                                               AND cantidad_segmentos = 1
-                                           )
-                                           OR
-                                       (
-                                           tipo_segmento_vuelo_id IN (2, 3)
-                                               AND cantidad_segmentos BETWEEN 2 AND 3
-                                           )
                                        )
 );
 
@@ -165,7 +149,7 @@ CREATE TABLE segmento_operado (
 
                                   tripulacion_id INT NOT NULL,
 
-                                  estado_vuelo_id INT NOT NULL DEFAULT 1,
+                                  estado_vuelo_id INT NOT NULL,
 
                                   fecha_salida_real DATE NULL,
 
@@ -243,6 +227,97 @@ CREATE TABLE segmento_operado (
                                               OR (fecha_llegada_real, hora_llegada_real) > (fecha_salida_real, hora_salida_real)
                                           )
 );
+
+
+DO $$
+DECLARE
+v_activo_id INTEGER;
+    v_programado_id INTEGER;
+    v_directo_id INTEGER;
+BEGIN
+SELECT id
+INTO v_activo_id
+FROM status_catalog
+WHERE UPPER(name) = 'ACTIVO';
+
+IF v_activo_id IS NULL THEN
+        RAISE EXCEPTION 'No existe el estado ACTIVO en status_catalog';
+END IF;
+
+SELECT id
+INTO v_programado_id
+FROM estado_vuelo
+WHERE UPPER(nombre) = 'PROGRAMADO';
+
+IF v_programado_id IS NULL THEN
+        RAISE EXCEPTION 'No existe el estado PROGRAMADO en estado_vuelo';
+END IF;
+
+SELECT id
+INTO v_directo_id
+FROM tipo_segmento_vuelo
+WHERE UPPER(nombre) = 'DIRECTO';
+
+IF v_directo_id IS NULL THEN
+        RAISE EXCEPTION 'No existe el tipo DIRECTO en tipo_segmento_vuelo';
+END IF;
+
+EXECUTE format(
+        'ALTER TABLE segmento_vuelo ALTER COLUMN estado_id SET DEFAULT %s',
+        v_activo_id
+        );
+
+EXECUTE format(
+        'ALTER TABLE vuelo_operado ALTER COLUMN estado_vuelo_id SET DEFAULT %s',
+        v_programado_id
+        );
+
+EXECUTE format(
+        'ALTER TABLE vuelo_operado ALTER COLUMN tipo_segmento_vuelo_id SET DEFAULT %s',
+        v_directo_id
+        );
+
+EXECUTE format(
+        'ALTER TABLE segmento_operado ALTER COLUMN estado_vuelo_id SET DEFAULT %s',
+        v_programado_id
+        );
+END $$;
+
+
+CREATE OR REPLACE FUNCTION fn_validar_vuelo_operado_tipo_segmentos()
+RETURNS TRIGGER AS
+$$
+DECLARE
+v_tipo_segmento_nombre VARCHAR(100);
+BEGIN
+SELECT nombre
+INTO v_tipo_segmento_nombre
+FROM tipo_segmento_vuelo
+WHERE id = NEW.tipo_segmento_vuelo_id;
+
+IF v_tipo_segmento_nombre IS NULL THEN
+        RAISE EXCEPTION 'Tipo de segmento no encontrado';
+END IF;
+
+    IF UPPER(v_tipo_segmento_nombre) = 'DIRECTO'
+       AND NEW.cantidad_segmentos <> 1 THEN
+        RAISE EXCEPTION 'Un vuelo DIRECTO debe tener exactamente 1 segmento';
+END IF;
+
+    IF UPPER(v_tipo_segmento_nombre) IN ('TECNICO', 'CAMBIO_AVION')
+       AND NEW.cantidad_segmentos NOT BETWEEN 2 AND 3 THEN
+        RAISE EXCEPTION 'Un vuelo con escala debe tener entre 2 y 3 segmentos';
+END IF;
+
+RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE TRIGGER trg_validar_vuelo_operado_tipo_segmentos
+    BEFORE INSERT OR UPDATE ON vuelo_operado
+                         FOR EACH ROW
+                         EXECUTE FUNCTION fn_validar_vuelo_operado_tipo_segmentos();
 
 
 CREATE INDEX idx_segmento_vuelo_vuelo_programado_id

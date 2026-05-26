@@ -1,7 +1,7 @@
 CREATE TABLE estado_asiento (
                                 id SERIAL PRIMARY KEY,
 
-                                nombre VARCHAR(100) NULL,
+                                nombre VARCHAR(100) NOT NULL,
 
                                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -10,23 +10,15 @@ CREATE TABLE estado_asiento (
                                     UNIQUE (nombre),
 
                                 CONSTRAINT chk_estado_asiento_nombre_no_vacio
-                                    CHECK (
-                                        nombre IS NULL
-                                            OR BTRIM(nombre) <> ''
-                                        )
+                                    CHECK (BTRIM(nombre) <> '')
 );
 
-INSERT INTO estado_asiento (id, nombre)
+INSERT INTO estado_asiento (nombre)
 VALUES
-    (1, 'DISPONIBLE'),
-    (2, 'RESERVADO'),
-    (3, 'OCUPADO'),
-    (4, 'BLOQUEADO');
-
-SELECT setval(
-               pg_get_serial_sequence('estado_asiento', 'id'),
-               (SELECT MAX(id) FROM estado_asiento)
-       );
+    ('DISPONIBLE'),
+    ('RESERVADO'),
+    ('OCUPADO'),
+    ('BLOQUEADO');
 
 
 CREATE TABLE asiento_vuelo (
@@ -36,7 +28,7 @@ CREATE TABLE asiento_vuelo (
 
                                codigo_asiento_sistema VARCHAR(80) NULL,
 
-                               estado_asiento_id INT NULL DEFAULT 1,
+                               estado_asiento_id INT NOT NULL,
 
                                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -52,6 +44,25 @@ CREATE TABLE asiento_vuelo (
                                CONSTRAINT uk_asiento_vuelo_segmento_codigo
                                    UNIQUE (segmento_operado_id, codigo_asiento_sistema)
 );
+
+DO $$
+DECLARE
+v_disponible_id INTEGER;
+BEGIN
+SELECT id
+INTO v_disponible_id
+FROM estado_asiento
+WHERE UPPER(nombre) = 'DISPONIBLE';
+
+IF v_disponible_id IS NULL THEN
+        RAISE EXCEPTION 'No existe el estado DISPONIBLE en estado_asiento';
+END IF;
+
+EXECUTE format(
+        'ALTER TABLE asiento_vuelo ALTER COLUMN estado_asiento_id SET DEFAULT %s',
+        v_disponible_id
+        );
+END $$;
 
 CREATE INDEX idx_asiento_vuelo_segmento_operado_id
     ON asiento_vuelo(segmento_operado_id);

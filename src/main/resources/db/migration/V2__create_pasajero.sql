@@ -9,13 +9,35 @@ CREATE TABLE pasajero (
                           telefono VARCHAR(20) NULL,
                           telefono_emergencia VARCHAR(20) NOT NULL,
                           direccion VARCHAR(255),
-                          estado_id INTEGER NOT NULL DEFAULT 1,
+                          estado_id INTEGER NOT NULL,
                           created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                           updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-                          CONSTRAINT fk_pasajero_user FOREIGN KEY (user_id) REFERENCES users(id),
-                          CONSTRAINT fk_pasajero_estado FOREIGN KEY (estado_id) REFERENCES status_catalog(id)
+                          CONSTRAINT fk_pasajero_user
+                              FOREIGN KEY (user_id) REFERENCES users(id),
+
+                          CONSTRAINT fk_pasajero_estado
+                              FOREIGN KEY (estado_id) REFERENCES status_catalog(id)
 );
+
+DO $$
+DECLARE
+v_activo_id INTEGER;
+BEGIN
+SELECT id
+INTO v_activo_id
+FROM status_catalog
+WHERE UPPER(name) = 'ACTIVO';
+
+IF v_activo_id IS NULL THEN
+        RAISE EXCEPTION 'No existe el estado ACTIVO en status_catalog';
+END IF;
+
+EXECUTE format(
+        'ALTER TABLE pasajero ALTER COLUMN estado_id SET DEFAULT %s',
+        v_activo_id
+        );
+END $$;
 
 CREATE INDEX idx_pasajero_user_id ON pasajero(user_id);
 CREATE INDEX idx_pasajero_pasaporte ON pasajero(pasaporte);

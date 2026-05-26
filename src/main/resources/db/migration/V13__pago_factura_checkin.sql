@@ -1,9 +1,12 @@
 CREATE TABLE metodo_pago (
                              id SERIAL PRIMARY KEY,
-                             nombre VARCHAR(100) NULL,
-                             estado_id INTEGER NULL DEFAULT 1,
+                             nombre VARCHAR(100) NOT NULL,
+                             estado_id INTEGER NOT NULL,
                              created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
                              updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+
+                             CONSTRAINT uk_metodo_pago_nombre
+                                 UNIQUE (nombre),
 
                              CONSTRAINT fk_metodo_pago_estado
                                  FOREIGN KEY (estado_id)
@@ -12,15 +15,83 @@ CREATE TABLE metodo_pago (
 
 CREATE TABLE estado_pago (
                              id SERIAL PRIMARY KEY,
-                             nombre VARCHAR(100) NULL,
-                             estado_id INTEGER NULL DEFAULT 1,
+                             nombre VARCHAR(100) NOT NULL,
+                             estado_id INTEGER NOT NULL,
                              created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
                              updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+
+                             CONSTRAINT uk_estado_pago_nombre
+                                 UNIQUE (nombre),
 
                              CONSTRAINT fk_estado_pago_estado
                                  FOREIGN KEY (estado_id)
                                      REFERENCES status_catalog(id)
 );
+
+CREATE TABLE estado_checkin (
+                                id SERIAL PRIMARY KEY,
+                                nombre VARCHAR(100) NOT NULL,
+                                estado_id INTEGER NOT NULL,
+                                created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+                                updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+
+                                CONSTRAINT uk_estado_checkin_nombre
+                                    UNIQUE (nombre),
+
+                                CONSTRAINT fk_estado_checkin_estado
+                                    FOREIGN KEY (estado_id)
+                                        REFERENCES status_catalog(id)
+);
+
+DO $$
+DECLARE
+v_activo_id INTEGER;
+BEGIN
+SELECT id
+INTO v_activo_id
+FROM status_catalog
+WHERE UPPER(name) = 'ACTIVO';
+
+IF v_activo_id IS NULL THEN
+        RAISE EXCEPTION 'No existe el estado ACTIVO en status_catalog';
+END IF;
+
+EXECUTE format(
+        'ALTER TABLE metodo_pago ALTER COLUMN estado_id SET DEFAULT %s',
+        v_activo_id
+        );
+
+EXECUTE format(
+        'ALTER TABLE estado_pago ALTER COLUMN estado_id SET DEFAULT %s',
+        v_activo_id
+        );
+
+EXECUTE format(
+        'ALTER TABLE estado_checkin ALTER COLUMN estado_id SET DEFAULT %s',
+        v_activo_id
+        );
+END $$;
+
+INSERT INTO metodo_pago (nombre)
+VALUES
+    ('EFECTIVO'),
+    ('TARJETA_CREDITO'),
+    ('TARJETA_DEBITO'),
+    ('TRANSFERENCIA');
+
+INSERT INTO estado_pago (nombre)
+VALUES
+    ('PENDIENTE'),
+    ('PAGADO'),
+    ('RECHAZADO'),
+    ('ANULADO');
+
+INSERT INTO estado_checkin (nombre)
+VALUES
+    ('PENDIENTE'),
+    ('REALIZADO'),
+    ('CANCELADO');
+
 
 CREATE TABLE pago (
                       id SERIAL PRIMARY KEY,
@@ -28,7 +99,7 @@ CREATE TABLE pago (
                       metodo_pago_id INTEGER NULL,
                       monto DECIMAL(10,2) NULL,
                       recargo_equipaje DECIMAL(10,2) NULL DEFAULT 0,
-                      estado_pago_id INTEGER NULL,
+                      estado_pago_id INTEGER NOT NULL,
                       fecha_pago TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
                       fecha_actualizacion TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
                       created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
@@ -66,22 +137,10 @@ CREATE TABLE factura (
                                  REFERENCES pago(id)
 );
 
-CREATE TABLE estado_checkin (
-                                id SERIAL PRIMARY KEY,
-                                nombre VARCHAR(100) NULL,
-                                estado_id INTEGER NULL DEFAULT 1,
-                                created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-                                updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-
-                                CONSTRAINT fk_estado_checkin_estado
-                                    FOREIGN KEY (estado_id)
-                                        REFERENCES status_catalog(id)
-);
-
 CREATE TABLE checkin (
                          id SERIAL PRIMARY KEY,
                          boleto_segmento_id INTEGER NULL,
-                         estado_checkin_id INTEGER NULL,
+                         estado_checkin_id INTEGER NOT NULL,
                          tipo_checkin VARCHAR(50) NULL,
                          fecha_checkin TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
                          fecha_actualizacion TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
@@ -116,44 +175,43 @@ CREATE TABLE historial_boleto (
                                           REFERENCES boleto(id)
 );
 
+DO $$
+DECLARE
+v_estado_pago_pendiente_id INTEGER;
+    v_estado_checkin_pendiente_id INTEGER;
+BEGIN
+SELECT id
+INTO v_estado_pago_pendiente_id
+FROM estado_pago
+WHERE UPPER(nombre) = 'PENDIENTE';
+
+IF v_estado_pago_pendiente_id IS NULL THEN
+        RAISE EXCEPTION 'No existe el estado PENDIENTE en estado_pago';
+END IF;
+
+SELECT id
+INTO v_estado_checkin_pendiente_id
+FROM estado_checkin
+WHERE UPPER(nombre) = 'PENDIENTE';
+
+IF v_estado_checkin_pendiente_id IS NULL THEN
+        RAISE EXCEPTION 'No existe el estado PENDIENTE en estado_checkin';
+END IF;
+
+EXECUTE format(
+        'ALTER TABLE pago ALTER COLUMN estado_pago_id SET DEFAULT %s',
+        v_estado_pago_pendiente_id
+        );
+
+EXECUTE format(
+        'ALTER TABLE checkin ALTER COLUMN estado_checkin_id SET DEFAULT %s',
+        v_estado_checkin_pendiente_id
+        );
+END $$;
+
 CREATE INDEX idx_pago_reserva_id ON pago(reserva_id);
 CREATE INDEX idx_pago_estado_pago_id ON pago(estado_pago_id);
 CREATE INDEX idx_factura_pago_id ON factura(pago_id);
 CREATE INDEX idx_checkin_boleto_segmento_id ON checkin(boleto_segmento_id);
 CREATE INDEX idx_checkin_estado_checkin_id ON checkin(estado_checkin_id);
 CREATE INDEX idx_historial_boleto_boleto_id ON historial_boleto(boleto_id);
-
-INSERT INTO metodo_pago (id, nombre, estado_id)
-VALUES
-    (1, 'EFECTIVO', 1),
-    (2, 'TARJETA_CREDITO', 1),
-    (3, 'TARJETA_DEBITO', 1),
-    (4, 'TRANSFERENCIA', 1);
-
-SELECT setval(
-               pg_get_serial_sequence('metodo_pago', 'id'),
-               (SELECT MAX(id) FROM metodo_pago)
-       );
-
-INSERT INTO estado_pago (id, nombre, estado_id)
-VALUES
-    (1, 'PENDIENTE', 1),
-    (2, 'PAGADO', 1),
-    (3, 'RECHAZADO', 1),
-    (4, 'ANULADO', 1);
-
-SELECT setval(
-               pg_get_serial_sequence('estado_pago', 'id'),
-               (SELECT MAX(id) FROM estado_pago)
-       );
-
-INSERT INTO estado_checkin (id, nombre, estado_id)
-VALUES
-    (1, 'PENDIENTE', 1),
-    (2, 'REALIZADO', 1),
-    (3, 'CANCELADO', 1);
-
-SELECT setval(
-               pg_get_serial_sequence('estado_checkin', 'id'),
-               (SELECT MAX(id) FROM estado_checkin)
-       );

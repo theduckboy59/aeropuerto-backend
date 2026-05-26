@@ -1,4 +1,5 @@
 package com.aeropuertolosprimos.backend.controller;
+import lombok.RequiredArgsConstructor;
 
 import com.aeropuertolosprimos.backend.dto.EmpleadoRequest;
 import com.aeropuertolosprimos.backend.dto.EmpleadoResponse;
@@ -9,13 +10,10 @@ import java.time.LocalDate;
 import java.util.List;
 
 @RestController
+@RequiredArgsConstructor
 public class EmpleadoController {
 
     private final EmpleadoService service;
-
-    public EmpleadoController(EmpleadoService service) {
-        this.service = service;
-    }
 
     @PostMapping("/register")
     public EmpleadoResponse crear(@RequestBody EmpleadoRequest request) {

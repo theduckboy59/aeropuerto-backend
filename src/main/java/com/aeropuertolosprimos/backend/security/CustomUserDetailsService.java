@@ -1,5 +1,7 @@
 package com.aeropuertolosprimos.backend.security;
 
+import lombok.RequiredArgsConstructor;
+
 import com.aeropuertolosprimos.backend.model.Rol;
 import com.aeropuertolosprimos.backend.model.User;
 import com.aeropuertolosprimos.backend.repository.RolRepository;
@@ -11,18 +13,12 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
     private final RolRepository rolRepository;
 
-    public CustomUserDetailsService(
-            UserRepository userRepository,
-            RolRepository rolRepository
-    ) {
-        this.userRepository = userRepository;
-        this.rolRepository = rolRepository;
-    }
 
     @Override
     public UserDetails loadUserByUsername(String input)

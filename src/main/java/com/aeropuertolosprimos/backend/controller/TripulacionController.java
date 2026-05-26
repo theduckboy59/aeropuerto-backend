@@ -1,5 +1,7 @@
 package com.aeropuertolosprimos.backend.controller;
 
+import lombok.RequiredArgsConstructor;
+
 import com.aeropuertolosprimos.backend.dto.TripulacionRequest;
 import com.aeropuertolosprimos.backend.dto.TripulacionResponse;
 import com.aeropuertolosprimos.backend.service.TripulacionService;
@@ -11,13 +13,11 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/tripulaciones")
+
+@RequiredArgsConstructor
 public class TripulacionController {
 
     private final TripulacionService service;
-
-    public TripulacionController(TripulacionService service) {
-        this.service = service;
-    }
 
     @GetMapping("/page")
     public Page<TripulacionResponse> findAll(

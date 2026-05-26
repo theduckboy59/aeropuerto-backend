@@ -26,13 +26,8 @@ public class PuertaEmbarque {
 
     @PrePersist
     public void prePersist() {
-
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
-
-        if (estadoId == null) {
-            estadoId = 1;
-        }
     }
 
     @PreUpdate

@@ -1,5 +1,7 @@
 package com.aeropuertolosprimos.backend.service;
 
+import lombok.RequiredArgsConstructor;
+
 import com.aeropuertolosprimos.backend.dto.AerolineaRequest;
 import com.aeropuertolosprimos.backend.dto.AerolineaResponse;
 import com.aeropuertolosprimos.backend.model.Aerolinea;
@@ -11,6 +13,7 @@ import java.util.List;
 import java.util.Locale;
 
 @Service
+@RequiredArgsConstructor
 public class AerolineaServiceImpl
         implements AerolineaService {
 
@@ -18,13 +21,6 @@ public class AerolineaServiceImpl
 
     private final CatalogoEstadoService catalogoEstadoService;
 
-    public AerolineaServiceImpl(
-            AerolineaRepository repository,
-            CatalogoEstadoService catalogoEstadoService
-    ) {
-        this.repository = repository;
-        this.catalogoEstadoService = catalogoEstadoService;
-    }
 
     @Override
     public AerolineaResponse crear(

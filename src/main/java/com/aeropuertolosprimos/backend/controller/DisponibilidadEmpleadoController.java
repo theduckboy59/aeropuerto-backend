@@ -1,5 +1,7 @@
 package com.aeropuertolosprimos.backend.controller;
 
+import lombok.RequiredArgsConstructor;
+
 import com.aeropuertolosprimos.backend.dto.*;
 import com.aeropuertolosprimos.backend.service.DisponibilidadEmpleadoService;
 import org.springframework.web.bind.annotation.*;
@@ -8,15 +10,11 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/disponibilidades")
+@RequiredArgsConstructor
 public class DisponibilidadEmpleadoController {
 
     private final DisponibilidadEmpleadoService service;
 
-    public DisponibilidadEmpleadoController(
-            DisponibilidadEmpleadoService service
-    ) {
-        this.service = service;
-    }
 
     @PostMapping
     public DisponibilidadEmpleadoResponse crear(

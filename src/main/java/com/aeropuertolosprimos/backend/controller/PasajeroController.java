@@ -1,5 +1,7 @@
 package com.aeropuertolosprimos.backend.controller;
 
+import lombok.RequiredArgsConstructor;
+
 import com.aeropuertolosprimos.backend.dto.PasajeroRequest;
 import com.aeropuertolosprimos.backend.dto.PasajeroResponse;
 import com.aeropuertolosprimos.backend.service.PasajeroService;
@@ -10,13 +12,11 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/pasajeros")
+@RequiredArgsConstructor
 public class PasajeroController {
 
     private final PasajeroService service;
 
-    public PasajeroController(PasajeroService service) {
-        this.service = service;
-    }
 
     @PostMapping
     public PasajeroResponse crear(@RequestBody PasajeroRequest request) {

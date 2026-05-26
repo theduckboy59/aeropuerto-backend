@@ -1,4 +1,5 @@
 package com.aeropuertolosprimos.backend.service;
+import lombok.RequiredArgsConstructor;
 
 import com.aeropuertolosprimos.backend.dto.PasajeroRequest;
 import com.aeropuertolosprimos.backend.dto.PasajeroResponse;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Objects;
 
 @Service
+@RequiredArgsConstructor
 public class PasajeroServiceImpl implements PasajeroService {
 
     private static final String ROL_PASAJERO = "PASAJERO";
@@ -26,19 +28,6 @@ public class PasajeroServiceImpl implements PasajeroService {
     private final CatalogoEstadoService catalogoEstadoService;
     private final RolRepository rolRepository;
 
-    public PasajeroServiceImpl(
-            PasajeroRepository repository,
-            UserRepository userRepository,
-            PasswordEncoder passwordEncoder,
-            CatalogoEstadoService catalogoEstadoService,
-            RolRepository rolRepository
-    ) {
-        this.repository = repository;
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.catalogoEstadoService = catalogoEstadoService;
-        this.rolRepository = rolRepository;
-    }
 
     @Override
     public PasajeroResponse crear(PasajeroRequest request) {

@@ -56,8 +56,9 @@ public class Reserva {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
 
-        if (fechaReserva == null) fechaReserva = LocalDateTime.now();
-        if (estadoId == null) estadoId = 1;
+        if (fechaReserva == null) {
+            fechaReserva = LocalDateTime.now();
+        }
     }
 
     @PreUpdate

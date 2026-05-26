@@ -68,10 +68,6 @@ public class Empleado {
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
-
-        if (this.estadoId == null) {
-            this.estadoId = 1;
-        }
     }
 
     @PreUpdate

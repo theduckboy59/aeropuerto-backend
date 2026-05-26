@@ -1,4 +1,5 @@
 package com.aeropuertolosprimos.backend.controller;
+import lombok.RequiredArgsConstructor;
 
 import com.aeropuertolosprimos.backend.dto.DestinoAutorizadoRequest;
 import com.aeropuertolosprimos.backend.dto.DestinoAutorizadoResponse;
@@ -9,16 +10,10 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/destinos-autorizados")
+@RequiredArgsConstructor
 public class DestinoAutorizadoController {
 
     private final DestinoAutorizadoService service;
-
-    public DestinoAutorizadoController(
-            DestinoAutorizadoService service
-    ) {
-        this.service = service;
-    }
-
     @PostMapping
     public DestinoAutorizadoResponse crear(
             @RequestBody DestinoAutorizadoRequest request

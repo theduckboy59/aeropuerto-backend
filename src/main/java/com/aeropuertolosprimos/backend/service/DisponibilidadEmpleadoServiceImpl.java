@@ -1,5 +1,7 @@
 package com.aeropuertolosprimos.backend.service;
 
+import lombok.RequiredArgsConstructor;
+
 import com.aeropuertolosprimos.backend.dto.*;
 import com.aeropuertolosprimos.backend.model.*;
 import com.aeropuertolosprimos.backend.repository.*;
@@ -8,19 +10,13 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class DisponibilidadEmpleadoServiceImpl
         implements DisponibilidadEmpleadoService {
 
     private final DisponibilidadEmpleadoRepository repository;
     private final EmpleadoRepository empleadoRepository;
 
-    public DisponibilidadEmpleadoServiceImpl(
-            DisponibilidadEmpleadoRepository repository,
-            EmpleadoRepository empleadoRepository
-    ) {
-        this.repository = repository;
-        this.empleadoRepository = empleadoRepository;
-    }
 
     @Override
     public DisponibilidadEmpleadoResponse crear(

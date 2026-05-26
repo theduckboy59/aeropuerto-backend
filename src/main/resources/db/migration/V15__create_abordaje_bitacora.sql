@@ -1,14 +1,44 @@
 CREATE TABLE estado_abordaje_vuelo (
                                        id SERIAL PRIMARY KEY,
-                                       nombre VARCHAR(100) NULL,
-                                       estado_id INTEGER NULL DEFAULT 1,
+                                       nombre VARCHAR(100) NOT NULL,
+                                       estado_id INTEGER NOT NULL,
                                        created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
                                        updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+
+                                       CONSTRAINT uk_estado_abordaje_vuelo_nombre
+                                           UNIQUE (nombre),
 
                                        CONSTRAINT fk_estado_abordaje_vuelo_estado
                                            FOREIGN KEY (estado_id)
                                                REFERENCES status_catalog(id)
 );
+
+DO $$
+DECLARE
+v_activo_id INTEGER;
+BEGIN
+SELECT id
+INTO v_activo_id
+FROM status_catalog
+WHERE UPPER(name) = 'ACTIVO';
+
+IF v_activo_id IS NULL THEN
+        RAISE EXCEPTION 'No existe el estado ACTIVO en status_catalog';
+END IF;
+
+EXECUTE format(
+        'ALTER TABLE estado_abordaje_vuelo ALTER COLUMN estado_id SET DEFAULT %s',
+        v_activo_id
+        );
+END $$;
+
+INSERT INTO estado_abordaje_vuelo (nombre)
+VALUES
+    ('PENDIENTE'),
+    ('ABORDADO'),
+    ('CANCELADO'),
+    ('RECHAZADO');
+
 
 CREATE TABLE abordaje (
                           id SERIAL PRIMARY KEY,
@@ -16,7 +46,7 @@ CREATE TABLE abordaje (
                           boleto_segmento_id INTEGER NULL,
                           empleado_id INTEGER NULL,
                           puerta_embarque_id INTEGER NULL,
-                          estado_abordaje_vuelo_id INTEGER NULL,
+                          estado_abordaje_vuelo_id INTEGER NOT NULL,
 
                           tipo_abordaje VARCHAR(20) NULL,
                           fecha_abordaje DATE NULL,
@@ -43,6 +73,26 @@ CREATE TABLE abordaje (
                               FOREIGN KEY (estado_abordaje_vuelo_id)
                                   REFERENCES estado_abordaje_vuelo(id)
 );
+
+DO $$
+DECLARE
+v_pendiente_id INTEGER;
+BEGIN
+SELECT id
+INTO v_pendiente_id
+FROM estado_abordaje_vuelo
+WHERE UPPER(nombre) = 'PENDIENTE';
+
+IF v_pendiente_id IS NULL THEN
+        RAISE EXCEPTION 'No existe el estado PENDIENTE en estado_abordaje_vuelo';
+END IF;
+
+EXECUTE format(
+        'ALTER TABLE abordaje ALTER COLUMN estado_abordaje_vuelo_id SET DEFAULT %s',
+        v_pendiente_id
+        );
+END $$;
+
 
 CREATE TABLE bitacora_sistema (
                                   id SERIAL PRIMARY KEY,
@@ -76,15 +126,3 @@ CREATE INDEX idx_bitacora_sistema_user_id
 
 CREATE INDEX idx_bitacora_sistema_tabla_afectada
     ON bitacora_sistema(tabla_afectada);
-
-INSERT INTO estado_abordaje_vuelo (id, nombre, estado_id)
-VALUES
-    (1, 'PENDIENTE', 1),
-    (2, 'ABORDADO', 1),
-    (3, 'CANCELADO', 1),
-    (4, 'RECHAZADO', 1);
-
-SELECT setval(
-               pg_get_serial_sequence('estado_abordaje_vuelo', 'id'),
-               (SELECT MAX(id) FROM estado_abordaje_vuelo)
-       );

@@ -54,10 +54,6 @@ public class Avion {
         if (this.cantidadVuelos == null) {
             this.cantidadVuelos = 0;
         }
-
-        if (this.estadoId == null) {
-            this.estadoId = 1;
-        }
     }
 
     @PreUpdate

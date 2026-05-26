@@ -6,9 +6,11 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import org.hibernate.annotations.DynamicInsert;
 
 @Data
 @Entity
+@DynamicInsert
 @Table(name = "segmento_vuelo")
 public class SegmentoVuelo {
 
@@ -56,10 +58,6 @@ public class SegmentoVuelo {
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
-
-        if (this.estadoId == null) {
-            this.estadoId = 1;
-        }
     }
 
     @PreUpdate

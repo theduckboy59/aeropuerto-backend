@@ -33,8 +33,6 @@ public class ReservaPasajero {
     public void prePersist() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
-
-        if (estadoId == null) estadoId = 1;
     }
 
     @PreUpdate

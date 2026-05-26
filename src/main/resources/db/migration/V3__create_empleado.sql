@@ -4,7 +4,7 @@ CREATE TABLE aerolinea (
                            codigo_iata VARCHAR(10),
                            codigo_icao VARCHAR(10),
                            pais VARCHAR(100),
-                           estado_id INT,
+                           estado_id INT NOT NULL,
                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
@@ -13,16 +13,34 @@ CREATE TABLE aerolinea (
                                    REFERENCES status_catalog(id)
 );
 
+DO $$
+DECLARE
+v_activo_id INTEGER;
+BEGIN
+SELECT id
+INTO v_activo_id
+FROM status_catalog
+WHERE UPPER(name) = 'ACTIVO';
+
+IF v_activo_id IS NULL THEN
+        RAISE EXCEPTION 'No existe el estado ACTIVO en status_catalog';
+END IF;
+
+EXECUTE format(
+        'ALTER TABLE aerolinea ALTER COLUMN estado_id SET DEFAULT %s',
+        v_activo_id
+        );
+END $$;
+
 INSERT INTO aerolinea (
     nombre,
     codigo_iata,
     codigo_icao,
-    pais,
-    estado_id
+    pais
 )
 VALUES
-    ('Avianca', 'AV', 'AVA', 'Colombia', 1),
-    ('Copa Airlines', 'CM', 'CMP', 'Panamá', 1);
+    ('Avianca', 'AV', 'AVA', 'Colombia'),
+    ('Copa Airlines', 'CM', 'CMP', 'Panamá');
 
 CREATE TABLE tipo_empleado (
                                id SERIAL PRIMARY KEY,
@@ -75,7 +93,7 @@ CREATE TABLE empleado (
                           area_id INTEGER NOT NULL,
                           licencia_id INTEGER,
                           fecha_vencimiento_licencia DATE,
-                          estado_id INTEGER NOT NULL DEFAULT 1,
+                          estado_id INTEGER NOT NULL,
                           created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                           updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -91,6 +109,25 @@ CREATE TABLE empleado (
                           CONSTRAINT fk_empleado_licencia FOREIGN KEY (licencia_id) REFERENCES licencia(id),
                           CONSTRAINT fk_empleado_estado FOREIGN KEY (estado_id) REFERENCES status_catalog(id)
 );
+
+DO $$
+DECLARE
+v_activo_id INTEGER;
+BEGIN
+SELECT id
+INTO v_activo_id
+FROM status_catalog
+WHERE UPPER(name) = 'ACTIVO';
+
+IF v_activo_id IS NULL THEN
+        RAISE EXCEPTION 'No existe el estado ACTIVO en status_catalog';
+END IF;
+
+EXECUTE format(
+        'ALTER TABLE empleado ALTER COLUMN estado_id SET DEFAULT %s',
+        v_activo_id
+        );
+END $$;
 
 INSERT INTO tipo_empleado (nombre) VALUES ('PILOTO');
 INSERT INTO tipo_empleado (nombre) VALUES ('COPILOTO');

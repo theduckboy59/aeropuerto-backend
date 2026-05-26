@@ -4,9 +4,11 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import org.hibernate.annotations.DynamicInsert;
 
 @Data
 @Entity
+@DynamicInsert
 @Table(name = "tipo_segmento_vuelo")
 public class TipoSegmentoVuelo {
 
@@ -38,10 +40,6 @@ public class TipoSegmentoVuelo {
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
-
-        if (this.estadoId == null) {
-            this.estadoId = 1;
-        }
 
         if (this.requiereNuevoAsiento == null) {
             this.requiereNuevoAsiento = false;
