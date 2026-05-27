@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 @Data
 public class ReservaPasajeroItemRequest {
@@ -39,4 +40,6 @@ public class ReservaPasajeroItemRequest {
     private String tipoPasajero;
 
     private Integer adultoResponsablePasajeroId;
+
+    private List<ReservaSegmentoAsientoRequest> segmentosAsientos;
 }

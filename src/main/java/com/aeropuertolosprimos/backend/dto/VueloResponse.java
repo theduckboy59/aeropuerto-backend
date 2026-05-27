@@ -2,6 +2,7 @@ package com.aeropuertolosprimos.backend.dto;
 
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -52,6 +53,10 @@ public class VueloResponse {
     private LocalDate fechaLlegada;
 
     private LocalTime horaLlegada;
+
+    private BigDecimal precioEconomica;
+
+    private BigDecimal precioEjecutiva;
 
     private LocalDateTime createdAt;
 

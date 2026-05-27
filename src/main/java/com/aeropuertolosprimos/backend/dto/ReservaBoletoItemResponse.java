@@ -3,6 +3,7 @@ package com.aeropuertolosprimos.backend.dto;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 public class ReservaBoletoItemResponse {
@@ -26,4 +27,6 @@ public class ReservaBoletoItemResponse {
     private Integer cantidadMaletas;
 
     private BigDecimal total;
+
+    private List<ReservaBoletoSegmentoResponse> segmentos;
 }

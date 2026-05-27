@@ -45,7 +45,22 @@ public class ReporteServiceImpl implements ReporteService {
                     COALESCE(sv.hora_salida, vp.hora_salida) AS "horaSalida",
                     COALESCE(sv.fecha_llegada, vp.fecha_llegada) AS "fechaLlegada",
                     COALESCE(sv.hora_llegada, vp.hora_llegada) AS "horaLlegada",
-                    ev.nombre AS "estadoVuelo"
+                    ev.nombre AS "estadoVuelo",
+                    precio_economica.precio AS "precioEconomica",
+                    precio_ejecutiva.precio AS "precioEjecutiva",
+                    EXTRACT(
+                        EPOCH FROM (
+                            (
+                                COALESCE(sv.fecha_llegada, vp.fecha_llegada)::timestamp
+                                + COALESCE(sv.hora_llegada, vp.hora_llegada)
+                            )
+                            -
+                            (
+                                COALESCE(sv.fecha_salida, vp.fecha_salida)::timestamp
+                                + COALESCE(sv.hora_salida, vp.hora_salida)
+                            )
+                        )
+                    ) / 60 AS "duracionMinutos"
                 FROM vuelo_operado vo
                 JOIN vuelo_programado vp ON vp.id = vo.vuelo_programado_id
                 JOIN vuelo v ON v.id = vp.vuelo_id
@@ -57,12 +72,37 @@ public class ReporteServiceImpl implements ReporteService {
                 LEFT JOIN modelo_avion ma ON ma.id = av.modelo_avion_id
                 LEFT JOIN aeropuerto origen ON origen.id = COALESCE(sv.aeropuerto_salida_id, vp.aeropuerto_salida_id)
                 LEFT JOIN aeropuerto destino ON destino.id = COALESCE(sv.aeropuerto_llegada_id, vp.aeropuerto_llegada_id)
+                LEFT JOIN LATERAL (
+                    SELECT pv.precio
+                    FROM precio_vuelo pv
+                    JOIN clase_vuelo cv ON cv.id = pv.clase_vuelo_id
+                    WHERE pv.vuelo_programado_id = vp.id
+                      AND UPPER(cv.nombre) = 'ECONOMICA'
+                      AND (pv.fecha_vigencia_desde IS NULL OR pv.fecha_vigencia_desde <= CURRENT_DATE)
+                      AND (pv.fecha_vigencia_hasta IS NULL OR pv.fecha_vigencia_hasta >= CURRENT_DATE)
+                    ORDER BY pv.fecha_vigencia_desde DESC NULLS LAST, pv.id DESC
+                    LIMIT 1
+                ) precio_economica ON TRUE
+                LEFT JOIN LATERAL (
+                    SELECT pv.precio
+                    FROM precio_vuelo pv
+                    JOIN clase_vuelo cv ON cv.id = pv.clase_vuelo_id
+                    WHERE pv.vuelo_programado_id = vp.id
+                      AND UPPER(cv.nombre) = 'EJECUTIVA'
+                      AND (pv.fecha_vigencia_desde IS NULL OR pv.fecha_vigencia_desde <= CURRENT_DATE)
+                      AND (pv.fecha_vigencia_hasta IS NULL OR pv.fecha_vigencia_hasta >= CURRENT_DATE)
+                    ORDER BY pv.fecha_vigencia_desde DESC NULLS LAST, pv.id DESC
+                    LIMIT 1
+                ) precio_ejecutiva ON TRUE
                 WHERE UPPER(v.codigo_vuelo) = UPPER(?)
                 ORDER BY vo.id DESC
                 LIMIT 1
                 """;
 
-        List<Map<String, Object>> rows = jdbc.queryForList(sql, codigoVuelo.trim());
+        List<Map<String, Object>> rows = jdbc.queryForList(
+                sql,
+                codigoVuelo.trim()
+        );
 
         if (rows.isEmpty()) {
             throw new BusinessException("El número de vuelo ingresado no se encontró");
@@ -79,7 +119,12 @@ public class ReporteServiceImpl implements ReporteService {
             LocalTime horaHasta
     ) {
 
-        validarRangoFechas(fechaDesde, horaDesde, fechaHasta, horaHasta);
+        validarRangoFechas(
+                fechaDesde,
+                horaDesde,
+                fechaHasta,
+                horaHasta
+        );
 
         StringBuilder sql = new StringBuilder("""
                 SELECT
@@ -94,7 +139,22 @@ public class ReporteServiceImpl implements ReporteService {
                     COALESCE(sv.hora_salida, vp.hora_salida) AS "horaSalida",
                     COALESCE(sv.fecha_llegada, vp.fecha_llegada) AS "fechaLlegada",
                     COALESCE(sv.hora_llegada, vp.hora_llegada) AS "horaLlegada",
-                    ev.nombre AS "estadoVuelo"
+                    ev.nombre AS "estadoVuelo",
+                    precio_economica.precio AS "precioEconomica",
+                    precio_ejecutiva.precio AS "precioEjecutiva",
+                    EXTRACT(
+                        EPOCH FROM (
+                            (
+                                COALESCE(sv.fecha_llegada, vp.fecha_llegada)::timestamp
+                                + COALESCE(sv.hora_llegada, vp.hora_llegada)
+                            )
+                            -
+                            (
+                                COALESCE(sv.fecha_salida, vp.fecha_salida)::timestamp
+                                + COALESCE(sv.hora_salida, vp.hora_salida)
+                            )
+                        )
+                    ) / 60 AS "duracionMinutos"
                 FROM vuelo_operado vo
                 JOIN vuelo_programado vp ON vp.id = vo.vuelo_programado_id
                 JOIN vuelo v ON v.id = vp.vuelo_id
@@ -106,6 +166,28 @@ public class ReporteServiceImpl implements ReporteService {
                 LEFT JOIN modelo_avion ma ON ma.id = av.modelo_avion_id
                 LEFT JOIN aeropuerto origen ON origen.id = COALESCE(sv.aeropuerto_salida_id, vp.aeropuerto_salida_id)
                 LEFT JOIN aeropuerto destino ON destino.id = COALESCE(sv.aeropuerto_llegada_id, vp.aeropuerto_llegada_id)
+                LEFT JOIN LATERAL (
+                    SELECT pv.precio
+                    FROM precio_vuelo pv
+                    JOIN clase_vuelo cv ON cv.id = pv.clase_vuelo_id
+                    WHERE pv.vuelo_programado_id = vp.id
+                      AND UPPER(cv.nombre) = 'ECONOMICA'
+                      AND (pv.fecha_vigencia_desde IS NULL OR pv.fecha_vigencia_desde <= CURRENT_DATE)
+                      AND (pv.fecha_vigencia_hasta IS NULL OR pv.fecha_vigencia_hasta >= CURRENT_DATE)
+                    ORDER BY pv.fecha_vigencia_desde DESC NULLS LAST, pv.id DESC
+                    LIMIT 1
+                ) precio_economica ON TRUE
+                LEFT JOIN LATERAL (
+                    SELECT pv.precio
+                    FROM precio_vuelo pv
+                    JOIN clase_vuelo cv ON cv.id = pv.clase_vuelo_id
+                    WHERE pv.vuelo_programado_id = vp.id
+                      AND UPPER(cv.nombre) = 'EJECUTIVA'
+                      AND (pv.fecha_vigencia_desde IS NULL OR pv.fecha_vigencia_desde <= CURRENT_DATE)
+                      AND (pv.fecha_vigencia_hasta IS NULL OR pv.fecha_vigencia_hasta >= CURRENT_DATE)
+                    ORDER BY pv.fecha_vigencia_desde DESC NULLS LAST, pv.id DESC
+                    LIMIT 1
+                ) precio_ejecutiva ON TRUE
                 WHERE 1 = 1
                 """);
 
@@ -114,16 +196,16 @@ public class ReporteServiceImpl implements ReporteService {
         if (fechaDesde != null) {
             sql.append("""
                     AND (
-                        (COALESCE(sv.fecha_salida, vp.fecha_salida) > ? 
+                        (COALESCE(sv.fecha_salida, vp.fecha_salida) > ?
                             OR (
-                                COALESCE(sv.fecha_salida, vp.fecha_salida) = ? 
+                                COALESCE(sv.fecha_salida, vp.fecha_salida) = ?
                                 AND COALESCE(sv.hora_salida, vp.hora_salida) >= ?
                             )
                         )
                         AND
-                        (COALESCE(sv.fecha_salida, vp.fecha_salida) < ? 
+                        (COALESCE(sv.fecha_salida, vp.fecha_salida) < ?
                             OR (
-                                COALESCE(sv.fecha_salida, vp.fecha_salida) = ? 
+                                COALESCE(sv.fecha_salida, vp.fecha_salida) = ?
                                 AND COALESCE(sv.hora_salida, vp.hora_salida) <= ?
                             )
                         )
@@ -139,13 +221,16 @@ public class ReporteServiceImpl implements ReporteService {
         }
 
         sql.append("""
-                ORDER BY 
+                ORDER BY
                     COALESCE(sv.fecha_salida, vp.fecha_salida) ASC,
                     COALESCE(sv.hora_salida, vp.hora_salida) ASC,
                     v.codigo_vuelo ASC
                 """);
 
-        return jdbc.queryForList(sql.toString(), params.toArray());
+        return jdbc.queryForList(
+                sql.toString(),
+                params.toArray()
+        );
     }
 
     @Override
@@ -227,7 +312,10 @@ public class ReporteServiceImpl implements ReporteService {
                 ORDER BY p.nombre_completo ASC, e.numero_maleta ASC
                 """;
 
-        return jdbc.queryForList(sql, codigoVuelo.trim());
+        return jdbc.queryForList(
+                sql,
+                codigoVuelo.trim()
+        );
     }
 
     @Override
@@ -404,14 +492,24 @@ public class ReporteServiceImpl implements ReporteService {
             return;
         }
 
-        LocalDateTime desde = LocalDateTime.of(fechaDesde, horaDesde);
-        LocalDateTime hasta = LocalDateTime.of(fechaHasta, horaHasta);
+        LocalDateTime desde = LocalDateTime.of(
+                fechaDesde,
+                horaDesde
+        );
+
+        LocalDateTime hasta = LocalDateTime.of(
+                fechaHasta,
+                horaHasta
+        );
 
         if (hasta.isBefore(desde)) {
             throw new BusinessException("La fecha y hora hasta debe ser mayor a la fecha y hora desde");
         }
 
-        long dias = ChronoUnit.DAYS.between(fechaDesde, fechaHasta);
+        long dias = ChronoUnit.DAYS.between(
+                fechaDesde,
+                fechaHasta
+        );
 
         if (dias > 30) {
             throw new BusinessException("El rango máximo de consulta es de 30 días");

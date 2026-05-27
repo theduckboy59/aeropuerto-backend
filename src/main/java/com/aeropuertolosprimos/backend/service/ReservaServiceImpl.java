@@ -1,9 +1,11 @@
 package com.aeropuertolosprimos.backend.service;
 
 import com.aeropuertolosprimos.backend.dto.ReservaBoletoItemResponse;
+import com.aeropuertolosprimos.backend.dto.ReservaBoletoSegmentoResponse;
 import com.aeropuertolosprimos.backend.dto.ReservaPasajeroItemRequest;
 import com.aeropuertolosprimos.backend.dto.ReservaRequest;
 import com.aeropuertolosprimos.backend.dto.ReservaResponse;
+import com.aeropuertolosprimos.backend.dto.ReservaSegmentoAsientoRequest;
 import com.aeropuertolosprimos.backend.exception.BusinessException;
 import com.aeropuertolosprimos.backend.model.*;
 import com.aeropuertolosprimos.backend.repository.*;
@@ -27,7 +29,6 @@ public class ReservaServiceImpl implements ReservaService {
 
     private static final String ESTADO_ASIENTO_DISPONIBLE = "DISPONIBLE";
     private static final String ESTADO_ASIENTO_RESERVADO = "RESERVADO";
-    private static final String ESTADO_ASIENTO_DISPONIBLE_NOMBRE = "DISPONIBLE";
 
     private static final String TIPO_EQUIPAJE_MALETA = "MALETA";
     private static final String ESTADO_EQUIPAJE_REGISTRADO = "REGISTRADO";
@@ -56,6 +57,7 @@ public class ReservaServiceImpl implements ReservaService {
     private final EstadoAsientoRepository estadoAsientoRepository;
     private final TipoEquipajeRepository tipoEquipajeRepository;
     private final EstadoEquipajeRepository estadoEquipajeRepository;
+    private final ClaseVueloRepository claseVueloRepository;
 
     private final CatalogoEstadoService catalogoEstadoService;
 
@@ -71,26 +73,30 @@ public class ReservaServiceImpl implements ReservaService {
 
         List<ReservaPasajeroItemRequest> items = normalizarItems(request);
 
-        VueloOperado vueloOperado = vueloOperadoRepository.findById(request.getVueloOperadoId())
-                .orElseThrow(() -> new BusinessException("Vuelo operado no encontrado"));
+        VueloOperado vueloOperado = vueloOperadoRepository
+                .findById(request.getVueloOperadoId())
+                .orElseThrow(() ->
+                        new BusinessException("Vuelo operado no encontrado")
+                );
 
-        SegmentoOperado segmentoOperado = segmentoOperadoRepository.findById(request.getSegmentoOperadoId())
-                .orElseThrow(() -> new BusinessException("Segmento operado no encontrado"));
+        List<SegmentoOperado> segmentosOperados = segmentoOperadoRepository
+                .findByVueloOperadoIdOrderByOrdenSegmentoAsc(vueloOperado.getId());
 
-        if (!Objects.equals(segmentoOperado.getVueloOperadoId(), vueloOperado.getId())) {
-            throw new BusinessException("El segmento no pertenece al vuelo operado seleccionado");
+        if (segmentosOperados.isEmpty()) {
+            throw new BusinessException("El vuelo operado no tiene segmentos");
         }
-
-        SegmentoVuelo segmentoVuelo = segmentoVueloRepository.findById(segmentoOperado.getSegmentoVueloId())
-                .orElseThrow(() -> new BusinessException("Segmento de vuelo no encontrado"));
 
         EstadoReserva estadoReserva = estadoReservaRepository
                 .findByNombreIgnoreCase(ESTADO_RESERVA_CONFIRMADA)
-                .orElseThrow(() -> new BusinessException("Estado de reserva CONFIRMADA no encontrado"));
+                .orElseThrow(() ->
+                        new BusinessException("Estado de reserva CONFIRMADA no encontrado")
+                );
 
         EstadoBoleto estadoBoleto = estadoBoletoRepository
                 .findByNombreIgnoreCase(ESTADO_BOLETO_PENDIENTE)
-                .orElseThrow(() -> new BusinessException("Estado de boleto PENDIENTE_ABORDAR no encontrado"));
+                .orElseThrow(() ->
+                        new BusinessException("Estado de boleto PENDIENTE_ABORDAR no encontrado")
+                );
 
         EstadoBoleto estadoCancelado = estadoBoletoRepository
                 .findByNombreIgnoreCase(ESTADO_BOLETO_CANCELADO)
@@ -98,127 +104,66 @@ public class ReservaServiceImpl implements ReservaService {
 
         EstadoAsiento estadoDisponible = estadoAsientoRepository
                 .findByNombreIgnoreCase(ESTADO_ASIENTO_DISPONIBLE)
-                .orElseThrow(() -> new BusinessException("Estado de asiento DISPONIBLE no encontrado"));
+                .orElseThrow(() ->
+                        new BusinessException("Estado de asiento DISPONIBLE no encontrado")
+                );
 
         EstadoAsiento estadoReservado = estadoAsientoRepository
                 .findByNombreIgnoreCase(ESTADO_ASIENTO_RESERVADO)
-                .orElseThrow(() -> new BusinessException("Estado de asiento RESERVADO no encontrado"));
+                .orElseThrow(() ->
+                        new BusinessException("Estado de asiento RESERVADO no encontrado")
+                );
 
         TipoEquipaje tipoMaleta = tipoEquipajeRepository
                 .findByNombreIgnoreCase(TIPO_EQUIPAJE_MALETA)
-                .orElseThrow(() -> new BusinessException("Tipo de equipaje MALETA no encontrado"));
+                .orElseThrow(() ->
+                        new BusinessException("Tipo de equipaje MALETA no encontrado")
+                );
 
         EstadoEquipaje estadoEquipaje = estadoEquipajeRepository
                 .findByNombreIgnoreCase(ESTADO_EQUIPAJE_REGISTRADO)
-                .orElseThrow(() -> new BusinessException("Estado de equipaje REGISTRADO no encontrado"));
+                .orElseThrow(() ->
+                        new BusinessException("Estado de equipaje REGISTRADO no encontrado")
+                );
 
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
         Integer estadoCanceladoId = estadoCancelado != null ? estadoCancelado.getId() : null;
 
-        Set<Integer> pasajerosUsados = new HashSet<>();
-        Set<Integer> asientosUsados = new HashSet<>();
+        if (request.getUserId() != null) {
+            userRepository.findById(request.getUserId())
+                    .orElseThrow(() ->
+                            new BusinessException("Usuario comprador no encontrado")
+                    );
+        }
 
-        BigDecimal subtotal = BigDecimal.ZERO;
-        BigDecimal recargoTotal = BigDecimal.ZERO;
+        List<PasajeroPlan> planes = construirPlanes(
+                request,
+                items,
+                vueloOperado,
+                segmentosOperados,
+                estadoDisponible,
+                estadoCanceladoId
+        );
 
         Integer compradorUserId = request.getUserId();
         Integer primerPasajeroId = null;
 
-        if (compradorUserId != null) {
-            userRepository.findById(compradorUserId)
-                    .orElseThrow(() -> new BusinessException("Usuario comprador no encontrado"));
-        }
+        BigDecimal subtotal = BigDecimal.ZERO;
+        BigDecimal recargoTotal = BigDecimal.ZERO;
 
-        for (ReservaPasajeroItemRequest item : items) {
-
-            validarItem(item);
-
-            Pasajero pasajero = resolverPasajero(item);
-
-            if (!pasajerosUsados.add(pasajero.getId())) {
-                throw new BusinessException("No puede repetir pasajeros en la misma reserva");
-            }
+        for (PasajeroPlan plan : planes) {
 
             if (primerPasajeroId == null) {
-                primerPasajeroId = pasajero.getId();
+                primerPasajeroId = plan.pasajero.getId();
             }
 
-            if (compradorUserId == null && pasajero.getUser() != null) {
-                compradorUserId = pasajero.getUser().getId();
+            if (compradorUserId == null && plan.pasajero.getUser() != null) {
+                compradorUserId = plan.pasajero.getUser().getId();
             }
 
-            Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
-
-            long cruces = boletoRepository.countBoletosPasajeroMismaFechaHora(
-                    pasajero.getId(),
-                    segmentoVuelo.getFechaSalida(),
-                    segmentoVuelo.getHoraSalida(),
-                    estadoActivoId,
-                    estadoCanceladoId
-            );
-
-            if (cruces > 0) {
-                throw new BusinessException(
-                        "No se puede seleccionar el vuelo porque el pasajero " +
-                                pasajero.getNombreCompleto() +
-                                " ya tiene vuelos asignados"
-                );
-            }
-
-            boolean requiereAsiento = requiereAsiento(item);
-
-            if (requiereAsiento) {
-
-                if (item.getAsientoVueloId() == null || item.getClaseVueloId() == null) {
-                    throw new BusinessException("Debe ingresar asiento y clase para cada pasajero que requiere asiento");
-                }
-
-                if (!asientosUsados.add(item.getAsientoVueloId())) {
-                    throw new BusinessException("No puede repetir asientos en la misma reserva");
-                }
-
-                AsientoVuelo asientoVuelo = asientoVueloRepository.findById(item.getAsientoVueloId())
-                        .orElseThrow(() -> new BusinessException("Asiento de vuelo no encontrado: " + item.getAsientoVueloId()));
-
-                if (!Objects.equals(asientoVuelo.getSegmentoOperadoId(), segmentoOperado.getId())) {
-                    throw new BusinessException("El asiento no pertenece al segmento seleccionado");
-                }
-
-                if (!Objects.equals(asientoVuelo.getEstadoAsientoId(), estadoDisponible.getId())) {
-                    throw new BusinessException("El asiento " + item.getAsientoVueloId() + " no está disponible");
-                }
-
-                AsientoUbi asientoUbi = asientoUbiRepository
-                        .findFirstByCodigoAsientoSistemaOrderByIdAsc(asientoVuelo.getCodigoAsientoSistema())
-                        .orElseThrow(() -> new BusinessException("No se encontró la ubicación física del asiento"));
-
-                if (asientoUbi.getClaseVueloId() == null ||
-                        !Objects.equals(asientoUbi.getClaseVueloId(), item.getClaseVueloId())) {
-
-                    throw new BusinessException("La clase seleccionada no coincide con la clase del asiento");
-                }
-
-                BigDecimal precioCalculado = resolverPrecioBase(
-                        vueloOperado.getVueloProgramadoId(),
-                        item.getClaseVueloId(),
-                        item.getPrecioBase()
-                );
-
-                item.setPrecioBase(precioCalculado);
-
-                BigDecimal recargoAsiento = resolverRecargoAsiento(
-                        vueloOperado.getVueloProgramadoId(),
-                        asientoUbi
-                );
-
-                recargoTotal = recargoTotal.add(recargoAsiento);
-            }
-
-            subtotal = subtotal.add(
-                    item.getPrecioBase() != null ? item.getPrecioBase() : BigDecimal.ZERO
-            );
+            subtotal = subtotal.add(plan.precioBase);
+            recargoTotal = recargoTotal.add(plan.recargoAsiento);
         }
-
-        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
 
         Reserva reserva = new Reserva();
 
@@ -237,55 +182,37 @@ public class ReservaServiceImpl implements ReservaService {
 
         reserva = reservaRepository.save(reserva);
 
-        ReservaSegmento reservaSegmento = new ReservaSegmento();
+        for (SegmentoOperado segmentoOperado : segmentosOperados) {
 
-        reservaSegmento.setReservaId(reserva.getId());
-        reservaSegmento.setSegmentoOperadoId(segmentoOperado.getId());
-        reservaSegmento.setOrdenSegmento(segmentoOperado.getOrdenSegmento());
+            ReservaSegmento reservaSegmento = new ReservaSegmento();
 
-        reservaSegmentoRepository.save(reservaSegmento);
+            reservaSegmento.setReservaId(reserva.getId());
+            reservaSegmento.setSegmentoOperadoId(segmentoOperado.getId());
+            reservaSegmento.setOrdenSegmento(segmentoOperado.getOrdenSegmento());
+            reservaSegmento.setEstadoId(estadoActivoId);
 
-        for (ReservaPasajeroItemRequest item : items) {
+            reservaSegmentoRepository.save(reservaSegmento);
+        }
 
-            Pasajero pasajero = resolverPasajero(item);
+        for (PasajeroPlan plan : planes) {
 
             ReservaPasajero reservaPasajero = new ReservaPasajero();
 
             reservaPasajero.setReservaId(reserva.getId());
-            reservaPasajero.setPasajeroId(pasajero.getId());
+            reservaPasajero.setPasajeroId(plan.pasajero.getId());
+            reservaPasajero.setEstadoId(estadoActivoId);
 
             reservaPasajeroRepository.save(reservaPasajero);
-
-            BigDecimal precioBase = item.getPrecioBase() != null
-                    ? item.getPrecioBase()
-                    : BigDecimal.ZERO;
-
-            BigDecimal recargoAsiento = BigDecimal.ZERO;
-
-            if (requiereAsiento(item)) {
-
-                AsientoVuelo asientoVueloTmp = asientoVueloRepository.findById(item.getAsientoVueloId())
-                        .orElseThrow(() -> new BusinessException("Asiento de vuelo no encontrado"));
-
-                AsientoUbi asientoUbiTmp = asientoUbiRepository
-                        .findFirstByCodigoAsientoSistemaOrderByIdAsc(asientoVueloTmp.getCodigoAsientoSistema())
-                        .orElseThrow(() -> new BusinessException("No se encontró la ubicación física del asiento"));
-
-                recargoAsiento = resolverRecargoAsiento(
-                        vueloOperado.getVueloProgramadoId(),
-                        asientoUbiTmp
-                );
-            }
 
             Boleto boleto = new Boleto();
 
             boleto.setReservaId(reserva.getId());
-            boleto.setPasajeroId(pasajero.getId());
+            boleto.setPasajeroId(plan.pasajero.getId());
             boleto.setVueloOperadoId(vueloOperado.getId());
             boleto.setEstadoBoletoId(estadoBoleto.getId());
-            boleto.setPrecioBase(precioBase);
+            boleto.setPrecioBase(plan.precioBase);
             boleto.setRecargoEquipaje(BigDecimal.ZERO);
-            boleto.setTotal(precioBase.add(recargoAsiento));
+            boleto.setTotal(plan.precioBase.add(plan.recargoAsiento));
             boleto.setEstadoId(estadoActivoId);
 
             boleto = boletoRepository.save(boleto);
@@ -295,50 +222,53 @@ public class ReservaServiceImpl implements ReservaService {
 
             boleto = boletoRepository.save(boleto);
 
-            BoletoSegmento boletoSegmento = new BoletoSegmento();
+            for (SegmentoAsientoPlan segmentoPlan : plan.segmentos) {
 
-            boletoSegmento.setBoletoId(boleto.getId());
-            boletoSegmento.setSegmentoOperadoId(segmentoOperado.getId());
-            boletoSegmento.setOrdenSegmento(segmentoOperado.getOrdenSegmento());
-            boletoSegmento.setEstadoBoletoId(estadoBoleto.getId());
+                BoletoSegmento boletoSegmento = new BoletoSegmento();
 
-            boletoSegmento = boletoSegmentoRepository.save(boletoSegmento);
+                boletoSegmento.setBoletoId(boleto.getId());
+                boletoSegmento.setSegmentoOperadoId(segmentoPlan.segmentoOperado.getId());
+                boletoSegmento.setOrdenSegmento(segmentoPlan.segmentoOperado.getOrdenSegmento());
+                boletoSegmento.setEstadoBoletoId(estadoBoleto.getId());
+                boletoSegmento.setEstadoId(estadoActivoId);
 
-            if (requiereAsiento(item)) {
+                boletoSegmento = boletoSegmentoRepository.save(boletoSegmento);
 
-                AsientoVuelo asientoVuelo = asientoVueloRepository.findById(item.getAsientoVueloId())
-                        .orElseThrow(() -> new BusinessException("Asiento de vuelo no encontrado"));
+                if (segmentoPlan.asientoVuelo != null) {
 
-                BoletoAsiento boletoAsiento = new BoletoAsiento();
+                    BoletoAsiento boletoAsiento = new BoletoAsiento();
 
-                boletoAsiento.setBoletoSegmentoId(boletoSegmento.getId());
-                boletoAsiento.setAsientoVueloId(asientoVuelo.getId());
-                boletoAsiento.setClaseVueloId(item.getClaseVueloId());
+                    boletoAsiento.setBoletoSegmentoId(boletoSegmento.getId());
+                    boletoAsiento.setAsientoVueloId(segmentoPlan.asientoVuelo.getId());
+                    boletoAsiento.setClaseVueloId(plan.item.getClaseVueloId());
+                    boletoAsiento.setEstadoId(estadoActivoId);
 
-                boletoAsientoRepository.save(boletoAsiento);
+                    boletoAsientoRepository.save(boletoAsiento);
 
-                asientoVuelo.setEstadoAsientoId(estadoReservado.getId());
+                    segmentoPlan.asientoVuelo.setEstadoAsientoId(estadoReservado.getId());
 
-                asientoVueloRepository.save(asientoVuelo);
-            }
+                    asientoVueloRepository.save(segmentoPlan.asientoVuelo);
+                }
 
-            int cantidadMaletas = item.getCantidadMaletas() != null
-                    ? item.getCantidadMaletas()
-                    : 0;
+                int cantidadMaletas = plan.item.getCantidadMaletas() != null
+                        ? plan.item.getCantidadMaletas()
+                        : 0;
 
-            for (int i = 1; i <= cantidadMaletas; i++) {
+                for (int i = 1; i <= cantidadMaletas; i++) {
 
-                Equipaje equipaje = new Equipaje();
+                    Equipaje equipaje = new Equipaje();
 
-                equipaje.setBoletoId(boleto.getId());
-                equipaje.setPasajeroId(pasajero.getId());
-                equipaje.setSegmentoOperadoId(segmentoOperado.getId());
-                equipaje.setTipoEquipajeId(tipoMaleta.getId());
-                equipaje.setEstadoEquipajeId(estadoEquipaje.getId());
-                equipaje.setNumeroMaleta(i);
-                equipaje.setMontoRecargo(BigDecimal.ZERO);
+                    equipaje.setBoletoId(boleto.getId());
+                    equipaje.setPasajeroId(plan.pasajero.getId());
+                    equipaje.setSegmentoOperadoId(segmentoPlan.segmentoOperado.getId());
+                    equipaje.setTipoEquipajeId(tipoMaleta.getId());
+                    equipaje.setEstadoEquipajeId(estadoEquipaje.getId());
+                    equipaje.setNumeroMaleta(i);
+                    equipaje.setMontoRecargo(BigDecimal.ZERO);
+                    equipaje.setEstadoId(estadoActivoId);
 
-                equipajeRepository.save(equipaje);
+                    equipajeRepository.save(equipaje);
+                }
             }
         }
 
@@ -356,7 +286,9 @@ public class ReservaServiceImpl implements ReservaService {
     ) {
 
         Reserva reserva = reservaRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Reserva no encontrada"));
+                .orElseThrow(() ->
+                        new BusinessException("Reserva no encontrada")
+                );
 
         return mapResponse(reserva);
     }
@@ -372,12 +304,17 @@ public class ReservaServiceImpl implements ReservaService {
         }
 
         pasajeroRepository.findById(pasajeroId)
-                .orElseThrow(() -> new BusinessException("Pasajero no encontrado"));
+                .orElseThrow(() ->
+                        new BusinessException("Pasajero no encontrado")
+                );
 
         Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
 
         return reservaPasajeroRepository
-                .findByPasajeroIdAndEstadoIdOrderByIdDesc(pasajeroId, estadoActivoId)
+                .findByPasajeroIdAndEstadoIdOrderByIdDesc(
+                        pasajeroId,
+                        estadoActivoId
+                )
                 .stream()
                 .map(rp -> reservaRepository.findById(rp.getReservaId()).orElse(null))
                 .filter(Objects::nonNull)
@@ -393,23 +330,33 @@ public class ReservaServiceImpl implements ReservaService {
     ) {
 
         Reserva reserva = reservaRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Reserva no encontrada"));
+                .orElseThrow(() ->
+                        new BusinessException("Reserva no encontrada")
+                );
 
         EstadoReserva estadoCancelada = estadoReservaRepository
                 .findByNombreIgnoreCase(ESTADO_RESERVA_CANCELADA)
-                .orElseThrow(() -> new BusinessException("Estado de reserva CANCELADA no encontrado"));
+                .orElseThrow(() ->
+                        new BusinessException("Estado de reserva CANCELADA no encontrado")
+                );
 
         EstadoBoleto estadoBoletoCancelado = estadoBoletoRepository
                 .findByNombreIgnoreCase(ESTADO_BOLETO_CANCELADO)
-                .orElseThrow(() -> new BusinessException("Estado de boleto CANCELADO no encontrado"));
+                .orElseThrow(() ->
+                        new BusinessException("Estado de boleto CANCELADO no encontrado")
+                );
 
         EstadoAsiento estadoDisponible = estadoAsientoRepository
-                .findByNombreIgnoreCase(ESTADO_ASIENTO_DISPONIBLE_NOMBRE)
-                .orElseThrow(() -> new BusinessException("Estado de asiento DISPONIBLE no encontrado"));
+                .findByNombreIgnoreCase(ESTADO_ASIENTO_DISPONIBLE)
+                .orElseThrow(() ->
+                        new BusinessException("Estado de asiento DISPONIBLE no encontrado")
+                );
 
         EstadoEquipaje estadoEquipajeCancelado = estadoEquipajeRepository
                 .findByNombreIgnoreCase(ESTADO_EQUIPAJE_CANCELADO)
-                .orElseThrow(() -> new BusinessException("Estado de equipaje CANCELADO no encontrado"));
+                .orElseThrow(() ->
+                        new BusinessException("Estado de equipaje CANCELADO no encontrado")
+                );
 
         if (Objects.equals(estadoCancelada.getId(), reserva.getEstadoReservaId())) {
             throw new BusinessException("La reserva ya está cancelada");
@@ -466,6 +413,283 @@ public class ReservaServiceImpl implements ReservaService {
         response.setMensaje("Reserva cancelada correctamente");
 
         return response;
+    }
+
+    private List<PasajeroPlan> construirPlanes(
+            ReservaRequest request,
+            List<ReservaPasajeroItemRequest> items,
+            VueloOperado vueloOperado,
+            List<SegmentoOperado> segmentosOperados,
+            EstadoAsiento estadoDisponible,
+            Integer estadoCanceladoId
+    ) {
+
+        Set<Integer> pasajerosUsados = new HashSet<>();
+        Set<Integer> asientosUsados = new HashSet<>();
+
+        List<PasajeroPlan> planes = new ArrayList<>();
+
+        boolean permiteSegmentosGlobales = items.size() == 1;
+
+        for (ReservaPasajeroItemRequest item : items) {
+
+            validarItem(item);
+
+            Pasajero pasajero = resolverPasajero(item);
+
+            if (!pasajerosUsados.add(pasajero.getId())) {
+                throw new BusinessException("No puede repetir pasajeros en la misma reserva");
+            }
+
+            validarCruceHorarioPasajero(
+                    pasajero,
+                    segmentosOperados,
+                    estadoCanceladoId
+            );
+
+            boolean requiereAsiento = requiereAsiento(item);
+
+            List<SegmentoAsientoPlan> segmentosPlan = new ArrayList<>();
+
+            BigDecimal precioBase = BigDecimal.ZERO;
+            BigDecimal recargoAsiento = BigDecimal.ZERO;
+
+            if (requiereAsiento) {
+
+                if (item.getClaseVueloId() == null) {
+                    throw new BusinessException("Debe ingresar la clase del vuelo");
+                }
+
+                List<ReservaSegmentoAsientoRequest> seleccionados =
+                        normalizarSegmentosAsientos(
+                                request,
+                                item,
+                                segmentosOperados,
+                                permiteSegmentosGlobales
+                        );
+
+                Map<Integer, ReservaSegmentoAsientoRequest> seleccionPorSegmento =
+                        mapearSeleccionPorSegmento(
+                                seleccionados,
+                                vueloOperado.getId()
+                        );
+
+                for (SegmentoOperado segmentoOperado : segmentosOperados) {
+
+                    ReservaSegmentoAsientoRequest seleccionado =
+                            seleccionPorSegmento.get(segmentoOperado.getId());
+
+                    if (seleccionado == null || seleccionado.getAsientoVueloId() == null) {
+                        throw new BusinessException("Debe seleccionar asiento para cada segmento del vuelo");
+                    }
+
+                    if (!asientosUsados.add(seleccionado.getAsientoVueloId())) {
+                        throw new BusinessException("No puede repetir asientos en la misma reserva");
+                    }
+
+                    AsientoVuelo asientoVuelo = asientoVueloRepository
+                            .findById(seleccionado.getAsientoVueloId())
+                            .orElseThrow(() ->
+                                    new BusinessException("Asiento de vuelo no encontrado: " + seleccionado.getAsientoVueloId())
+                            );
+
+                    if (!Objects.equals(asientoVuelo.getSegmentoOperadoId(), segmentoOperado.getId())) {
+                        throw new BusinessException("El asiento no pertenece al segmento seleccionado");
+                    }
+
+                    if (!Objects.equals(asientoVuelo.getEstadoAsientoId(), estadoDisponible.getId())) {
+                        throw new BusinessException("El asiento " + asientoVuelo.getId() + " no está disponible");
+                    }
+
+                    AsientoUbi asientoUbi = asientoUbiRepository
+                            .findFirstByCodigoAsientoSistemaOrderByIdAsc(asientoVuelo.getCodigoAsientoSistema())
+                            .orElseThrow(() ->
+                                    new BusinessException("No se encontró la ubicación física del asiento")
+                            );
+
+                    if (asientoUbi.getClaseVueloId() == null ||
+                            !Objects.equals(asientoUbi.getClaseVueloId(), item.getClaseVueloId())) {
+
+                        throw new BusinessException("La clase seleccionada no coincide con la clase del asiento");
+                    }
+
+                    recargoAsiento = recargoAsiento.add(
+                            resolverRecargoAsiento(
+                                    vueloOperado.getVueloProgramadoId(),
+                                    asientoUbi
+                            )
+                    );
+
+                    segmentosPlan.add(
+                            new SegmentoAsientoPlan(
+                                    segmentoOperado,
+                                    asientoVuelo,
+                                    asientoUbi
+                            )
+                    );
+                }
+
+                precioBase = resolverPrecioBase(
+                        vueloOperado.getVueloProgramadoId(),
+                        item.getClaseVueloId(),
+                        item.getPrecioBase()
+                );
+
+                item.setPrecioBase(precioBase);
+
+            } else {
+
+                for (SegmentoOperado segmentoOperado : segmentosOperados) {
+                    segmentosPlan.add(
+                            new SegmentoAsientoPlan(
+                                    segmentoOperado,
+                                    null,
+                                    null
+                            )
+                    );
+                }
+
+                precioBase = item.getPrecioBase() != null
+                        ? item.getPrecioBase()
+                        : BigDecimal.ZERO;
+            }
+
+            planes.add(
+                    new PasajeroPlan(
+                            item,
+                            pasajero,
+                            segmentosPlan,
+                            precioBase,
+                            recargoAsiento
+                    )
+            );
+        }
+
+        return planes;
+    }
+
+    private void validarCruceHorarioPasajero(
+            Pasajero pasajero,
+            List<SegmentoOperado> segmentosOperados,
+            Integer estadoCanceladoId
+    ) {
+
+        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+
+        for (SegmentoOperado segmentoOperado : segmentosOperados) {
+
+            SegmentoVuelo segmentoVuelo = segmentoVueloRepository
+                    .findById(segmentoOperado.getSegmentoVueloId())
+                    .orElseThrow(() ->
+                            new BusinessException("Segmento de vuelo no encontrado")
+                    );
+
+            if (segmentoVuelo.getFechaSalida() == null ||
+                    segmentoVuelo.getHoraSalida() == null) {
+                continue;
+            }
+
+            long cruces = boletoRepository.countBoletosPasajeroMismaFechaHora(
+                    pasajero.getId(),
+                    segmentoVuelo.getFechaSalida(),
+                    segmentoVuelo.getHoraSalida(),
+                    estadoActivoId,
+                    estadoCanceladoId
+            );
+
+            if (cruces > 0) {
+                throw new BusinessException(
+                        "No se puede seleccionar el vuelo porque el pasajero " +
+                                pasajero.getNombreCompleto() +
+                                " ya tiene vuelos asignados"
+                );
+            }
+        }
+    }
+
+    private Map<Integer, ReservaSegmentoAsientoRequest> mapearSeleccionPorSegmento(
+            List<ReservaSegmentoAsientoRequest> seleccionados,
+            Integer vueloOperadoId
+    ) {
+
+        Map<Integer, ReservaSegmentoAsientoRequest> map = new HashMap<>();
+
+        for (ReservaSegmentoAsientoRequest seleccionado : seleccionados) {
+
+            if (seleccionado == null ||
+                    seleccionado.getSegmentoOperadoId() == null) {
+
+                throw new BusinessException("Debe ingresar el segmento para cada asiento");
+            }
+
+            SegmentoOperado segmentoOperado = segmentoOperadoRepository
+                    .findById(seleccionado.getSegmentoOperadoId())
+                    .orElseThrow(() ->
+                            new BusinessException("Segmento operado no encontrado: " + seleccionado.getSegmentoOperadoId())
+                    );
+
+            if (!Objects.equals(segmentoOperado.getVueloOperadoId(), vueloOperadoId)) {
+                throw new BusinessException("El segmento no pertenece al vuelo operado seleccionado");
+            }
+
+            if (map.containsKey(seleccionado.getSegmentoOperadoId())) {
+                throw new BusinessException("No puede repetir segmentos en la selección de asientos");
+            }
+
+            map.put(
+                    seleccionado.getSegmentoOperadoId(),
+                    seleccionado
+            );
+        }
+
+        return map;
+    }
+
+    private List<ReservaSegmentoAsientoRequest> normalizarSegmentosAsientos(
+            ReservaRequest request,
+            ReservaPasajeroItemRequest item,
+            List<SegmentoOperado> segmentosOperados,
+            boolean permiteSegmentosGlobales
+    ) {
+
+        if (item.getSegmentosAsientos() != null &&
+                !item.getSegmentosAsientos().isEmpty()) {
+
+            return item.getSegmentosAsientos();
+        }
+
+        if (request.getSegmentosAsientos() != null &&
+                !request.getSegmentosAsientos().isEmpty()) {
+
+            if (!permiteSegmentosGlobales) {
+                throw new BusinessException("Para varios pasajeros debe ingresar los asientos dentro de cada pasajero");
+            }
+
+            return request.getSegmentosAsientos();
+        }
+
+        if (segmentosOperados.size() == 1) {
+
+            SegmentoOperado unico = segmentosOperados.get(0);
+
+            ReservaSegmentoAsientoRequest seleccionado = new ReservaSegmentoAsientoRequest();
+
+            seleccionado.setSegmentoOperadoId(
+                    request.getSegmentoOperadoId() != null
+                            ? request.getSegmentoOperadoId()
+                            : unico.getId()
+            );
+
+            seleccionado.setAsientoVueloId(
+                    item.getAsientoVueloId() != null
+                            ? item.getAsientoVueloId()
+                            : request.getAsientoVueloId()
+            );
+
+            return List.of(seleccionado);
+        }
+
+        throw new BusinessException("Debe ingresar un asiento por cada segmento del vuelo");
     }
 
     private BigDecimal resolverPrecioBase(
@@ -547,8 +771,7 @@ public class ReservaServiceImpl implements ReservaService {
     ) {
 
         if (request == null ||
-                request.getVueloOperadoId() == null ||
-                request.getSegmentoOperadoId() == null) {
+                request.getVueloOperadoId() == null) {
 
             throw new BusinessException("Debe ingresar los campos obligatorios");
         }
@@ -570,6 +793,7 @@ public class ReservaServiceImpl implements ReservaService {
         item.setCantidadMaletas(request.getCantidadMaletas());
         item.setPrecioBase(request.getPrecioBase());
         item.setRequiereAsiento(request.getRequiereAsiento());
+        item.setSegmentosAsientos(request.getSegmentosAsientos());
 
         return List.of(item);
     }
@@ -696,7 +920,9 @@ public class ReservaServiceImpl implements ReservaService {
 
         if (reserva.getEstadoReservaId() != null) {
             estadoReservaRepository.findById(reserva.getEstadoReservaId())
-                    .ifPresent(e -> response.setEstadoReserva(e.getNombre()));
+                    .ifPresent(e ->
+                            response.setEstadoReserva(e.getNombre())
+                    );
         }
 
         List<Boleto> boletos = boletoRepository.findByReservaIdOrderByIdAsc(reserva.getId());
@@ -718,7 +944,9 @@ public class ReservaServiceImpl implements ReservaService {
 
             if (primerBoleto.getEstadoBoletoId() != null) {
                 estadoBoletoRepository.findById(primerBoleto.getEstadoBoletoId())
-                        .ifPresent(e -> response.setEstadoBoleto(e.getNombre()));
+                        .ifPresent(e ->
+                                response.setEstadoBoleto(e.getNombre())
+                        );
             }
 
             response.setAsientoVueloId(primerItem.getAsientoVueloId());
@@ -751,17 +979,46 @@ public class ReservaServiceImpl implements ReservaService {
 
         List<Equipaje> equipajes = equipajeRepository.findByBoletoId(boleto.getId());
 
-        response.setCantidadMaletas(equipajes.size());
+        long maletasUnicas = equipajes.stream()
+                .map(Equipaje::getNumeroMaleta)
+                .filter(Objects::nonNull)
+                .distinct()
+                .count();
+
+        response.setCantidadMaletas((int) maletasUnicas);
 
         List<BoletoSegmento> segmentos = boletoSegmentoRepository
                 .findByBoletoIdOrderByOrdenSegmentoAsc(boleto.getId());
 
-        if (segmentos.isEmpty()) {
-            return response;
+        List<ReservaBoletoSegmentoResponse> segmentosResponse = segmentos.stream()
+                .map(this::mapBoletoSegmento)
+                .toList();
+
+        response.setSegmentos(segmentosResponse);
+
+        if (!segmentosResponse.isEmpty()) {
+
+            ReservaBoletoSegmentoResponse primero = segmentosResponse.get(0);
+
+            response.setAsientoVueloId(primero.getAsientoVueloId());
+            response.setAsiento(primero.getAsiento());
         }
 
+        return response;
+    }
+
+    private ReservaBoletoSegmentoResponse mapBoletoSegmento(
+            BoletoSegmento boletoSegmento
+    ) {
+
+        ReservaBoletoSegmentoResponse response = new ReservaBoletoSegmentoResponse();
+
+        response.setBoletoSegmentoId(boletoSegmento.getId());
+        response.setSegmentoOperadoId(boletoSegmento.getSegmentoOperadoId());
+        response.setOrdenSegmento(boletoSegmento.getOrdenSegmento());
+
         List<BoletoAsiento> asientos = boletoAsientoRepository
-                .findByBoletoSegmentoId(segmentos.get(0).getId());
+                .findByBoletoSegmentoId(boletoSegmento.getId());
 
         if (asientos.isEmpty()) {
             return response;
@@ -770,6 +1027,14 @@ public class ReservaServiceImpl implements ReservaService {
         BoletoAsiento boletoAsiento = asientos.get(0);
 
         response.setAsientoVueloId(boletoAsiento.getAsientoVueloId());
+        response.setClaseVueloId(boletoAsiento.getClaseVueloId());
+
+        if (boletoAsiento.getClaseVueloId() != null) {
+            claseVueloRepository.findById(boletoAsiento.getClaseVueloId())
+                    .ifPresent(clase ->
+                            response.setClaseVueloNombre(clase.getNombre())
+                    );
+        }
 
         if (boletoAsiento.getAsientoVueloId() != null) {
 
@@ -795,6 +1060,55 @@ public class ReservaServiceImpl implements ReservaService {
             String prefijo,
             Integer id
     ) {
+
         return prefijo + "-" + String.format("%06d", id);
+    }
+
+    private static class PasajeroPlan {
+
+        private final ReservaPasajeroItemRequest item;
+
+        private final Pasajero pasajero;
+
+        private final List<SegmentoAsientoPlan> segmentos;
+
+        private final BigDecimal precioBase;
+
+        private final BigDecimal recargoAsiento;
+
+        private PasajeroPlan(
+                ReservaPasajeroItemRequest item,
+                Pasajero pasajero,
+                List<SegmentoAsientoPlan> segmentos,
+                BigDecimal precioBase,
+                BigDecimal recargoAsiento
+        ) {
+
+            this.item = item;
+            this.pasajero = pasajero;
+            this.segmentos = segmentos;
+            this.precioBase = precioBase;
+            this.recargoAsiento = recargoAsiento;
+        }
+    }
+
+    private static class SegmentoAsientoPlan {
+
+        private final SegmentoOperado segmentoOperado;
+
+        private final AsientoVuelo asientoVuelo;
+
+        private final AsientoUbi asientoUbi;
+
+        private SegmentoAsientoPlan(
+                SegmentoOperado segmentoOperado,
+                AsientoVuelo asientoVuelo,
+                AsientoUbi asientoUbi
+        ) {
+
+            this.segmentoOperado = segmentoOperado;
+            this.asientoVuelo = asientoVuelo;
+            this.asientoUbi = asientoUbi;
+        }
     }
 }

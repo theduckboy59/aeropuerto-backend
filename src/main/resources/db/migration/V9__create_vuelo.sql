@@ -21,12 +21,6 @@ VALUES
     ('FINALIZADO');
 
 
-/* ============================================================
-   CATÁLOGO FUTURO: TIPO SEGMENTO VUELO
-   Se usará después si se agregan segmentos/paradas.
-   No se relaciona todavía con vuelo_programado.
-   ============================================================ */
-
 CREATE TABLE tipo_segmento_vuelo (
                                      id SERIAL PRIMARY KEY,
 
@@ -85,11 +79,6 @@ VALUES
     ('CAMBIO_AVION', TRUE, TRUE, TRUE);
 
 
-/* ============================================================
-   VUELO
-   Cabecera del vuelo.
-   Borrado lógico controlado por status_catalog.
-   ============================================================ */
 
 CREATE TABLE vuelo (
                        id SERIAL PRIMARY KEY,
@@ -147,13 +136,6 @@ CREATE INDEX idx_vuelo_aerolinea_id
 CREATE INDEX idx_vuelo_estado_id
     ON vuelo(estado_id);
 
-
-/* ============================================================
-   VUELO PROGRAMADO
-   Planificación del vuelo.
-   Las puertas de embarque NO son FK.
-   Se guardan como código porque salen del aeropuerto.
-   ============================================================ */
 
 CREATE TABLE vuelo_programado (
                                   id SERIAL PRIMARY KEY,

@@ -5,12 +5,16 @@ import com.aeropuertolosprimos.backend.dto.VueloResponse;
 import com.aeropuertolosprimos.backend.exception.BusinessException;
 import com.aeropuertolosprimos.backend.model.Aerolinea;
 import com.aeropuertolosprimos.backend.model.Aeropuerto;
+import com.aeropuertolosprimos.backend.model.ClaseVuelo;
+import com.aeropuertolosprimos.backend.model.PrecioVuelo;
 import com.aeropuertolosprimos.backend.model.StatusCatalog;
 import com.aeropuertolosprimos.backend.model.Vuelo;
 import com.aeropuertolosprimos.backend.model.VueloProgramado;
 import com.aeropuertolosprimos.backend.repository.AerolineaRepository;
 import com.aeropuertolosprimos.backend.repository.AeropuertoRepository;
+import com.aeropuertolosprimos.backend.repository.ClaseVueloRepository;
 import com.aeropuertolosprimos.backend.repository.DestinoAutorizadoRepository;
+import com.aeropuertolosprimos.backend.repository.PrecioVueloRepository;
 import com.aeropuertolosprimos.backend.repository.PuertaEmbarqueRepository;
 import com.aeropuertolosprimos.backend.repository.StatusCatalogRepository;
 import com.aeropuertolosprimos.backend.repository.VueloProgramadoRepository;
@@ -22,6 +26,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -34,6 +39,9 @@ public class VueloServiceImpl implements VueloService {
     private static final String ESTADO_ACTIVO = "ACTIVO";
     private static final String ESTADO_INACTIVO = "INACTIVO";
 
+    private static final String CLASE_ECONOMICA = "ECONOMICA";
+    private static final String CLASE_EJECUTIVA = "EJECUTIVA";
+
     private final VueloRepository vueloRepository;
     private final VueloProgramadoRepository vueloProgramadoRepository;
     private final AerolineaRepository aerolineaRepository;
@@ -41,6 +49,8 @@ public class VueloServiceImpl implements VueloService {
     private final StatusCatalogRepository statusCatalogRepository;
     private final DestinoAutorizadoRepository destinoAutorizadoRepository;
     private final PuertaEmbarqueRepository puertaEmbarqueRepository;
+    private final ClaseVueloRepository claseVueloRepository;
+    private final PrecioVueloRepository precioVueloRepository;
 
     private final AsientoVueloService asientoVueloService;
 
@@ -142,6 +152,7 @@ public class VueloServiceImpl implements VueloService {
         normalizarRequest(request);
 
         validarCamposObligatorios(request);
+        validarPrecios(request);
         validarReferenciasActivas(request);
         validarDestinosAutorizados(request);
         validarPuertasEmbarque(request);
@@ -205,6 +216,11 @@ public class VueloServiceImpl implements VueloService {
         VueloProgramado programadoGuardado =
                 vueloProgramadoRepository.save(programado);
 
+        guardarPrecios(
+                programadoGuardado.getId(),
+                request
+        );
+
         return mapResponse(
                 vueloGuardado,
                 programadoGuardado
@@ -225,6 +241,7 @@ public class VueloServiceImpl implements VueloService {
         normalizarRequest(request);
 
         validarCamposObligatorios(request);
+        validarPrecios(request);
 
         Vuelo vuelo = findVuelo(id);
 
@@ -283,6 +300,11 @@ public class VueloServiceImpl implements VueloService {
         VueloProgramado programadoActualizado =
                 vueloProgramadoRepository.save(programado);
 
+        guardarPrecios(
+                programadoActualizado.getId(),
+                request
+        );
+
         return mapResponse(
                 vueloActualizado,
                 programadoActualizado
@@ -318,9 +340,24 @@ public class VueloServiceImpl implements VueloService {
                 request.getFechaSalida() == null ||
                 request.getHoraSalida() == null ||
                 request.getFechaLlegada() == null ||
-                request.getHoraLlegada() == null) {
+                request.getHoraLlegada() == null ||
+                request.getPrecioEconomica() == null ||
+                request.getPrecioEjecutiva() == null) {
 
             throw new BusinessException("Debe ingresar los campos obligatorios");
+        }
+    }
+
+    private void validarPrecios(
+            VueloRequest request
+    ) {
+
+        if (request.getPrecioEconomica().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("El precio de clase económica debe ser mayor a 0");
+        }
+
+        if (request.getPrecioEjecutiva().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("El precio de clase ejecutiva debe ser mayor a 0");
         }
     }
 
@@ -486,6 +523,115 @@ public class VueloServiceImpl implements VueloService {
         }
     }
 
+    private void guardarPrecios(
+            Integer vueloProgramadoId,
+            VueloRequest request
+    ) {
+
+        ClaseVuelo economica = obtenerClaseVueloPorNombre(
+                CLASE_ECONOMICA
+        );
+
+        ClaseVuelo ejecutiva = obtenerClaseVueloPorNombre(
+                CLASE_EJECUTIVA
+        );
+
+        guardarOActualizarPrecio(
+                vueloProgramadoId,
+                economica.getId(),
+                request.getPrecioEconomica()
+        );
+
+        guardarOActualizarPrecio(
+                vueloProgramadoId,
+                ejecutiva.getId(),
+                request.getPrecioEjecutiva()
+        );
+    }
+
+    private void guardarOActualizarPrecio(
+            Integer vueloProgramadoId,
+            Integer claseVueloId,
+            BigDecimal precio
+    ) {
+
+        PrecioVuelo precioVuelo = precioVueloRepository
+                .findFirstByVueloProgramadoIdAndClaseVueloIdAndFechaVigenciaHastaIsNullOrderByIdDesc(
+                        vueloProgramadoId,
+                        claseVueloId
+                )
+                .orElseGet(PrecioVuelo::new);
+
+        precioVuelo.setVueloProgramadoId(
+                vueloProgramadoId
+        );
+
+        precioVuelo.setClaseVueloId(
+                claseVueloId
+        );
+
+        precioVuelo.setPrecio(
+                precio
+        );
+
+        if (precioVuelo.getFechaVigenciaDesde() == null) {
+            precioVuelo.setFechaVigenciaDesde(
+                    LocalDate.now()
+            );
+        }
+
+        precioVuelo.setFechaVigenciaHasta(
+                null
+        );
+
+        precioVueloRepository.save(
+                precioVuelo
+        );
+    }
+
+    private ClaseVuelo obtenerClaseVueloPorNombre(
+            String nombre
+    ) {
+
+        return claseVueloRepository
+                .findByNombreIgnoreCase(nombre)
+                .orElseThrow(() ->
+                        new BusinessException("No existe la clase de vuelo " + nombre)
+                );
+    }
+
+    private void cargarPreciosResponse(
+            VueloResponse response,
+            Integer vueloProgramadoId
+    ) {
+
+        ClaseVuelo economica = obtenerClaseVueloPorNombre(
+                CLASE_ECONOMICA
+        );
+
+        ClaseVuelo ejecutiva = obtenerClaseVueloPorNombre(
+                CLASE_EJECUTIVA
+        );
+
+        precioVueloRepository
+                .findFirstByVueloProgramadoIdAndClaseVueloIdAndFechaVigenciaHastaIsNullOrderByIdDesc(
+                        vueloProgramadoId,
+                        economica.getId()
+                )
+                .ifPresent(precio ->
+                        response.setPrecioEconomica(precio.getPrecio())
+                );
+
+        precioVueloRepository
+                .findFirstByVueloProgramadoIdAndClaseVueloIdAndFechaVigenciaHastaIsNullOrderByIdDesc(
+                        vueloProgramadoId,
+                        ejecutiva.getId()
+                )
+                .ifPresent(precio ->
+                        response.setPrecioEjecutiva(precio.getPrecio())
+                );
+    }
+
     private void validarVueloActivo(
             Vuelo vuelo
     ) {
@@ -622,6 +768,11 @@ public class VueloServiceImpl implements VueloService {
                         response.setAeropuertoLlegadaCodigoIcao(a.getCodigoIcao());
                     });
         }
+
+        cargarPreciosResponse(
+                response,
+                programado.getId()
+        );
 
         return response;
     }
