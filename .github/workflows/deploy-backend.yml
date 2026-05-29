@@ -35,16 +35,23 @@ jobs:
 
             echo "Esperando arranque del backend..."
 
+            BACKEND_OK=0
+
             for i in {1..60}; do
-              if curl -fsS http://localhost:8080/catalogos/status > /dev/null; then
-                echo "Backend levantado correctamente."
-                echo "Deploy completado correctamente."
-                exit 0
+              if curl -fsS http://localhost:8080/catalogos/status > /dev/null 2>&1; then
+                BACKEND_OK=1
+                break
               fi
 
               echo "Intento $i: backend aún no disponible..."
               sleep 2
             done
+
+            if [ "$BACKEND_OK" -eq 1 ]; then
+              echo "Backend levantado correctamente."
+              echo "Deploy completado correctamente."
+              exit 0
+            fi
 
             echo "ERROR: El backend no levantó a tiempo."
             sudo journalctl -u aeropuerto-backend -n 150 --no-pager
