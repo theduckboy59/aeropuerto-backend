@@ -47,13 +47,12 @@ jobs:
               sleep 2
             done
 
-            if [ "$BACKEND_OK" -eq 1 ]; then
-              echo "Backend levantado correctamente."
-              echo "Deploy completado correctamente."
-              exit 0
+            if [ "$BACKEND_OK" -ne 1 ]; then
+              echo "ERROR: El backend no levantó a tiempo."
+              sudo journalctl -u aeropuerto-backend -n 150 --no-pager
+              exit 1
             fi
 
-            echo "ERROR: El backend no levantó a tiempo."
-            sudo journalctl -u aeropuerto-backend -n 150 --no-pager
-            exit 1
+            echo "Backend levantado correctamente."
+            echo "Deploy completado correctamente."
           EOF
