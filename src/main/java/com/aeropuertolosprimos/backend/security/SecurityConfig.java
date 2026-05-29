@@ -17,6 +17,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
+import org.springframework.http.HttpMethod;
+
 @Configuration
 @RequiredArgsConstructor
 public class SecurityConfig {
@@ -113,6 +115,12 @@ public class SecurityConfig {
 
                         .requestMatchers("/reportes/**").permitAll()
                         .requestMatchers("/consultas/**").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/cliente/**").permitAll()
+                        .requestMatchers("/documentos/**").permitAll()
+                        .requestMatchers("/error").permitAll()
+
+
 
 
                         .anyRequest().authenticated()
