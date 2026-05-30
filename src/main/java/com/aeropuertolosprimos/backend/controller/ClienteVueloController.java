@@ -1,5 +1,7 @@
 package com.aeropuertolosprimos.backend.controller;
 
+import com.aeropuertolosprimos.backend.dto.ClienteDestinoAutorizadoResponse;
+import com.aeropuertolosprimos.backend.dto.ClienteFechaDisponibleResponse;
 import com.aeropuertolosprimos.backend.dto.ClienteVueloDisponibleResponse;
 import com.aeropuertolosprimos.backend.service.ClienteVueloDisponibleService;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,47 @@ public class ClienteVueloController {
     ) {
 
         return service.listarDisponibles(
+                aeropuertoSalidaId,
+                aeropuertoLlegadaId,
+                fechaSalida
+        );
+    }
+
+    @GetMapping("/destinos-autorizados")
+    public List<ClienteDestinoAutorizadoResponse> listarDestinosAutorizados(
+            @RequestParam Integer aeropuertoSalidaId
+    ) {
+
+        return service.listarDestinosAutorizados(
+                aeropuertoSalidaId
+        );
+    }
+
+    @GetMapping("/fechas-disponibles")
+    public List<ClienteFechaDisponibleResponse> listarFechasDisponibles(
+            @RequestParam Integer aeropuertoSalidaId,
+
+            @RequestParam Integer aeropuertoLlegadaId
+    ) {
+
+        return service.listarFechasDisponibles(
+                aeropuertoSalidaId,
+                aeropuertoLlegadaId
+        );
+    }
+
+    @GetMapping("/fechas-regreso-disponibles")
+    public List<ClienteFechaDisponibleResponse> listarFechasRegresoDisponibles(
+            @RequestParam Integer aeropuertoSalidaId,
+
+            @RequestParam Integer aeropuertoLlegadaId,
+
+            @RequestParam
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate fechaSalida
+    ) {
+
+        return service.listarFechasRegresoDisponibles(
                 aeropuertoSalidaId,
                 aeropuertoLlegadaId,
                 fechaSalida
