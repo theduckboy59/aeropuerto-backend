@@ -129,169 +129,169 @@ public class ClienteVueloDisponibleServiceImpl implements ClienteVueloDisponible
 
     private String sqlVuelosDisponibles() {
         return """
-                SELECT
-                    vo.id AS vuelo_operado_id,
-                    vp.id AS vuelo_programado_id,
-                    v.id AS vuelo_id,
-                    v.codigo_vuelo AS codigo_vuelo,
+            SELECT
+                vo.id AS vuelo_operado_id,
+                vp.id AS vuelo_programado_id,
+                v.id AS vuelo_id,
+                v.codigo_vuelo AS codigo_vuelo,
 
-                    a.id AS aerolinea_id,
-                    a.nombre AS aerolinea_nombre,
+                a.id AS aerolinea_id,
+                a.nombre AS aerolinea_nombre,
 
-                    aps.id AS aeropuerto_salida_id,
-                    aps.nombre AS aeropuerto_salida_nombre,
-                    aps.codigo_iata AS aeropuerto_salida_codigo_iata,
+                aps.id AS aeropuerto_salida_id,
+                aps.nombre AS aeropuerto_salida_nombre,
+                aps.codigo_iata AS aeropuerto_salida_codigo_iata,
 
-                    apl.id AS aeropuerto_llegada_id,
-                    apl.nombre AS aeropuerto_llegada_nombre,
-                    apl.codigo_iata AS aeropuerto_llegada_codigo_iata,
+                apl.id AS aeropuerto_llegada_id,
+                apl.nombre AS aeropuerto_llegada_nombre,
+                apl.codigo_iata AS aeropuerto_llegada_codigo_iata,
 
-                    vp.puerta_embarque_salida AS puerta_embarque_salida,
-                    vp.puerta_embarque_llegada AS puerta_embarque_llegada,
+                vp.puerta_embarque_salida AS puerta_embarque_salida,
+                vp.puerta_embarque_llegada AS puerta_embarque_llegada,
 
-                    vp.fecha_salida AS fecha_salida,
-                    vp.hora_salida AS hora_salida,
-                    vp.fecha_llegada AS fecha_llegada,
-                    vp.hora_llegada AS hora_llegada,
+                vp.fecha_salida AS fecha_salida,
+                vp.hora_salida AS hora_salida,
+                vp.fecha_llegada AS fecha_llegada,
+                vp.hora_llegada AS hora_llegada,
 
-                    CAST(
-                        EXTRACT(
-                            EPOCH FROM (
-                                (vp.fecha_llegada + vp.hora_llegada)
-                                -
-                                (vp.fecha_salida + vp.hora_salida)
-                            )
-                        ) / 60
-                        AS BIGINT
-                    ) AS duracion_minutos,
+                CAST(
+                    EXTRACT(
+                        EPOCH FROM (
+                            (vp.fecha_llegada + vp.hora_llegada)
+                            -
+                            (vp.fecha_salida + vp.hora_salida)
+                        )
+                    ) / 60
+                    AS BIGINT
+                ) AS duracion_minutos,
 
-                    (
-                        SELECT pv.precio
-                        FROM precio_vuelo pv
-                        INNER JOIN clase_vuelo cvp ON cvp.id = pv.clase_vuelo_id
-                        WHERE pv.vuelo_programado_id = vp.id
-                          AND pv.fecha_vigencia_hasta IS NULL
-                          AND UPPER(cvp.nombre) LIKE 'ECON%'
-                        ORDER BY pv.id DESC
-                        LIMIT 1
-                    ) AS precio_economica,
+                (
+                    SELECT pv.precio
+                    FROM precio_vuelo pv
+                    INNER JOIN clase_vuelo cvp ON cvp.id = pv.clase_vuelo_id
+                    WHERE pv.vuelo_programado_id = vp.id
+                      AND pv.fecha_vigencia_hasta IS NULL
+                      AND UPPER(cvp.nombre) LIKE 'ECON%'
+                    ORDER BY pv.id DESC
+                    LIMIT 1
+                ) AS precio_economica,
 
-                    (
-                        SELECT pv.precio
-                        FROM precio_vuelo pv
-                        INNER JOIN clase_vuelo cvp ON cvp.id = pv.clase_vuelo_id
-                        WHERE pv.vuelo_programado_id = vp.id
-                          AND pv.fecha_vigencia_hasta IS NULL
-                          AND UPPER(cvp.nombre) LIKE 'EJEC%'
-                        ORDER BY pv.id DESC
-                        LIMIT 1
-                    ) AS precio_ejecutiva,
+                (
+                    SELECT pv.precio
+                    FROM precio_vuelo pv
+                    INNER JOIN clase_vuelo cvp ON cvp.id = pv.clase_vuelo_id
+                    WHERE pv.vuelo_programado_id = vp.id
+                      AND pv.fecha_vigencia_hasta IS NULL
+                      AND UPPER(cvp.nombre) LIKE 'EJEC%'
+                    ORDER BY pv.id DESC
+                    LIMIT 1
+                ) AS precio_ejecutiva,
 
-                    tsv.id AS tipo_segmento_vuelo_id,
-                    tsv.nombre AS tipo_segmento_vuelo_nombre,
+                tsv.id AS tipo_segmento_vuelo_id,
+                tsv.nombre AS tipo_segmento_vuelo_nombre,
 
-                    CASE
-                        WHEN UPPER(tsv.nombre) = 'CAMBIO_AVION' THEN TRUE
-                        ELSE FALSE
-                    END AS requiere_nuevo_asiento,
+                CASE
+                    WHEN UPPER(tsv.nombre) = 'CAMBIO_AVION' THEN TRUE
+                    ELSE FALSE
+                END AS requiere_nuevo_asiento,
 
-                    vo.cantidad_segmentos AS cantidad_segmentos,
-                    vo.tuvo_escala AS tuvo_escala,
+                vo.cantidad_segmentos AS cantidad_segmentos,
+                vo.tuvo_escala AS tuvo_escala,
 
-                    COUNT(
-                        CASE
-                            WHEN UPPER(ea.nombre) = 'DISPONIBLE' THEN 1
-                        END
-                    ) AS asientos_disponibles_total,
-
-                    COUNT(
-                        CASE
-                            WHEN UPPER(ea.nombre) = 'DISPONIBLE'
-                             AND UPPER(cvas.nombre) LIKE 'ECON%'
-                            THEN 1
-                        END
-                    ) AS asientos_disponibles_economica,
-
-                    COUNT(
-                        CASE
-                            WHEN UPPER(ea.nombre) = 'DISPONIBLE'
-                             AND UPPER(cvas.nombre) LIKE 'EJEC%'
-                            THEN 1
-                        END
-                    ) AS asientos_disponibles_ejecutiva
-
-                FROM vuelo_operado vo
-                INNER JOIN vuelo_programado vp ON vp.id = vo.vuelo_programado_id
-                INNER JOIN vuelo v ON v.id = vp.vuelo_id
-                INNER JOIN status_catalog sc ON sc.id = v.estado_id
-                INNER JOIN aerolinea a ON a.id = v.aerolinea_id
-                INNER JOIN aeropuerto aps ON aps.id = vp.aeropuerto_salida_id
-                INNER JOIN aeropuerto apl ON apl.id = vp.aeropuerto_llegada_id
-                INNER JOIN estado_vuelo ev ON ev.id = vo.estado_vuelo_id
-                INNER JOIN tipo_segmento_vuelo tsv ON tsv.id = vo.tipo_segmento_vuelo_id
-
-                LEFT JOIN segmento_operado so ON so.vuelo_operado_id = vo.id
-                LEFT JOIN asiento_vuelo avu ON avu.segmento_operado_id = so.id
-                LEFT JOIN estado_asiento ea ON ea.id = avu.estado_asiento_id
-                LEFT JOIN asiento_ubi au
-                       ON au.codigo_asiento_sistema = avu.codigo_asiento_sistema
-                      AND au.avion_id = so.avion_id
-                LEFT JOIN clase_vuelo cvas ON cvas.id = au.clase_vuelo_id
-
-                WHERE vp.aeropuerto_salida_id = :aeropuertoSalidaId
-                                                       AND vp.aeropuerto_llegada_id = :aeropuertoLlegadaId
-                                                       AND (
-                                                           (:fechaSalida IS NOT NULL AND vp.fecha_salida = :fechaSalida)
-                                                           OR
-                                                           (
-                                                               :fechaSalida IS NULL
-                                                               AND (
-                                                                   vp.fecha_salida > CURRENT_DATE
-                                                                   OR (
-                                                                       vp.fecha_salida = CURRENT_DATE
-                                                                       AND vp.hora_salida >= CURRENT_TIME
-                                                                   )
-                                                               )
-                                                           )
-                                                       )
-                                                       AND UPPER(sc.name) = 'ACTIVO'
-                                                       AND UPPER(ev.nombre) = 'PROGRAMADO'
-
-                GROUP BY
-                    vo.id,
-                    vp.id,
-                    v.id,
-                    v.codigo_vuelo,
-                    a.id,
-                    a.nombre,
-                    aps.id,
-                    aps.nombre,
-                    aps.codigo_iata,
-                    apl.id,
-                    apl.nombre,
-                    apl.codigo_iata,
-                    vp.puerta_embarque_salida,
-                    vp.puerta_embarque_llegada,
-                    vp.fecha_salida,
-                    vp.hora_salida,
-                    vp.fecha_llegada,
-                    vp.hora_llegada,
-                    tsv.id,
-                    tsv.nombre,
-                    vo.cantidad_segmentos,
-                    vo.tuvo_escala
-
-                HAVING COUNT(
+                COUNT(
                     CASE
                         WHEN UPPER(ea.nombre) = 'DISPONIBLE' THEN 1
                     END
-                ) > 0
+                ) AS asientos_disponibles_total,
 
-                ORDER BY
-                    vp.fecha_salida ASC,
-                    vp.hora_salida ASC,
-                    v.codigo_vuelo ASC
-                """;
+                COUNT(
+                    CASE
+                        WHEN UPPER(ea.nombre) = 'DISPONIBLE'
+                         AND UPPER(cvas.nombre) LIKE 'ECON%'
+                        THEN 1
+                    END
+                ) AS asientos_disponibles_economica,
+
+                COUNT(
+                    CASE
+                        WHEN UPPER(ea.nombre) = 'DISPONIBLE'
+                         AND UPPER(cvas.nombre) LIKE 'EJEC%'
+                        THEN 1
+                    END
+                ) AS asientos_disponibles_ejecutiva
+
+            FROM vuelo_operado vo
+            INNER JOIN vuelo_programado vp ON vp.id = vo.vuelo_programado_id
+            INNER JOIN vuelo v ON v.id = vp.vuelo_id
+            INNER JOIN status_catalog sc ON sc.id = v.estado_id
+            INNER JOIN aerolinea a ON a.id = v.aerolinea_id
+            INNER JOIN aeropuerto aps ON aps.id = vp.aeropuerto_salida_id
+            INNER JOIN aeropuerto apl ON apl.id = vp.aeropuerto_llegada_id
+            INNER JOIN estado_vuelo ev ON ev.id = vo.estado_vuelo_id
+            INNER JOIN tipo_segmento_vuelo tsv ON tsv.id = vo.tipo_segmento_vuelo_id
+
+            LEFT JOIN segmento_operado so ON so.vuelo_operado_id = vo.id
+            LEFT JOIN asiento_vuelo avu ON avu.segmento_operado_id = so.id
+            LEFT JOIN estado_asiento ea ON ea.id = avu.estado_asiento_id
+            LEFT JOIN asiento_ubi au
+                   ON au.codigo_asiento_sistema = avu.codigo_asiento_sistema
+                  AND au.avion_id = so.avion_id
+            LEFT JOIN clase_vuelo cvas ON cvas.id = au.clase_vuelo_id
+
+            WHERE vp.aeropuerto_salida_id = :aeropuertoSalidaId
+              AND vp.aeropuerto_llegada_id = :aeropuertoLlegadaId
+              AND (
+                    (:fechaSalida IS NOT NULL AND vp.fecha_salida = :fechaSalida)
+                    OR
+                    (
+                        :fechaSalida IS NULL
+                        AND (
+                            vp.fecha_salida > CURRENT_DATE
+                            OR (
+                                vp.fecha_salida = CURRENT_DATE
+                                AND vp.hora_salida >= CURRENT_TIME
+                            )
+                        )
+                    )
+              )
+              AND UPPER(sc.name) = 'ACTIVO'
+              AND UPPER(ev.nombre) = 'PROGRAMADO'
+
+            GROUP BY
+                vo.id,
+                vp.id,
+                v.id,
+                v.codigo_vuelo,
+                a.id,
+                a.nombre,
+                aps.id,
+                aps.nombre,
+                aps.codigo_iata,
+                apl.id,
+                apl.nombre,
+                apl.codigo_iata,
+                vp.puerta_embarque_salida,
+                vp.puerta_embarque_llegada,
+                vp.fecha_salida,
+                vp.hora_salida,
+                vp.fecha_llegada,
+                vp.hora_llegada,
+                tsv.id,
+                tsv.nombre,
+                vo.cantidad_segmentos,
+                vo.tuvo_escala
+
+            HAVING COUNT(
+                CASE
+                    WHEN UPPER(ea.nombre) = 'DISPONIBLE' THEN 1
+                END
+            ) > 0
+
+            ORDER BY
+                vp.fecha_salida ASC,
+                vp.hora_salida ASC,
+                v.codigo_vuelo ASC
+            """;
     }
 
     private String sqlDetalleVueloDisponible() {
