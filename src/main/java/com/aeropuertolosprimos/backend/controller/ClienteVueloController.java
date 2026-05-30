@@ -22,7 +22,7 @@ public class ClienteVueloController {
 
             @RequestParam Integer aeropuertoLlegadaId,
 
-            @RequestParam
+            @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
             LocalDate fechaSalida
     ) {

@@ -108,10 +108,6 @@ public class ClienteVueloDisponibleServiceImpl implements ClienteVueloDisponible
             throw new BusinessException("Debe seleccionar aeropuerto de llegada");
         }
 
-        if (fechaSalida == null) {
-            throw new BusinessException("Debe seleccionar fecha de salida");
-        }
-
         if (aeropuertoSalidaId.equals(aeropuertoLlegadaId)) {
             throw new BusinessException("No se puede seleccionar el mismo aeropuerto de salida y llegada");
         }
@@ -243,10 +239,23 @@ public class ClienteVueloDisponibleServiceImpl implements ClienteVueloDisponible
                 LEFT JOIN clase_vuelo cvas ON cvas.id = au.clase_vuelo_id
 
                 WHERE vp.aeropuerto_salida_id = :aeropuertoSalidaId
-                  AND vp.aeropuerto_llegada_id = :aeropuertoLlegadaId
-                  AND vp.fecha_salida = :fechaSalida
-                  AND UPPER(sc.name) = 'ACTIVO'
-                  AND UPPER(ev.nombre) = 'PROGRAMADO'
+                                                       AND vp.aeropuerto_llegada_id = :aeropuertoLlegadaId
+                                                       AND (
+                                                           (:fechaSalida IS NOT NULL AND vp.fecha_salida = :fechaSalida)
+                                                           OR
+                                                           (
+                                                               :fechaSalida IS NULL
+                                                               AND (
+                                                                   vp.fecha_salida > CURRENT_DATE
+                                                                   OR (
+                                                                       vp.fecha_salida = CURRENT_DATE
+                                                                       AND vp.hora_salida >= CURRENT_TIME
+                                                                   )
+                                                               )
+                                                           )
+                                                       )
+                                                       AND UPPER(sc.name) = 'ACTIVO'
+                                                       AND UPPER(ev.nombre) = 'PROGRAMADO'
 
                 GROUP BY
                     vo.id,
