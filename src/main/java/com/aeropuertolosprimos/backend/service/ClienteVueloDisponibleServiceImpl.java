@@ -37,17 +37,21 @@ public class ClienteVueloDisponibleServiceImpl implements ClienteVueloDisponible
 
         validarFiltros(
                 aeropuertoSalidaId,
-                aeropuertoLlegadaId,
-                fechaSalida
+                aeropuertoLlegadaId
         );
 
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("aeropuertoSalidaId", aeropuertoSalidaId)
-                .addValue("aeropuertoLlegadaId", aeropuertoLlegadaId)
-                .addValue("fechaSalida", fechaSalida);
+                .addValue("aeropuertoLlegadaId", aeropuertoLlegadaId);
+
+        boolean filtrarPorFecha = fechaSalida != null;
+
+        if (filtrarPorFecha) {
+            params.addValue("fechaSalida", fechaSalida);
+        }
 
         List<ClienteVueloDisponibleResponse> vuelos = jdbc.query(
-                sqlVuelosDisponibles(),
+                sqlVuelosDisponibles(filtrarPorFecha),
                 params,
                 vueloMapper()
         );
@@ -126,8 +130,7 @@ public class ClienteVueloDisponibleServiceImpl implements ClienteVueloDisponible
 
         validarFiltros(
                 aeropuertoSalidaId,
-                aeropuertoLlegadaId,
-                null
+                aeropuertoLlegadaId
         );
 
         MapSqlParameterSource params = new MapSqlParameterSource()
@@ -151,8 +154,7 @@ public class ClienteVueloDisponibleServiceImpl implements ClienteVueloDisponible
 
         validarFiltros(
                 aeropuertoSalidaId,
-                aeropuertoLlegadaId,
-                fechaSalida
+                aeropuertoLlegadaId
         );
 
         if (fechaSalida == null) {
@@ -173,8 +175,7 @@ public class ClienteVueloDisponibleServiceImpl implements ClienteVueloDisponible
 
     private void validarFiltros(
             Integer aeropuertoSalidaId,
-            Integer aeropuertoLlegadaId,
-            LocalDate fechaSalida
+            Integer aeropuertoLlegadaId
     ) {
 
         if (aeropuertoSalidaId == null) {
@@ -204,7 +205,28 @@ public class ClienteVueloDisponibleServiceImpl implements ClienteVueloDisponible
         );
     }
 
-    private String sqlVuelosDisponibles() {
+    private String sqlVuelosDisponibles(
+            boolean filtrarPorFecha
+    ) {
+
+        String filtroFecha;
+
+        if (filtrarPorFecha) {
+            filtroFecha = """
+                      AND vp.fecha_salida = :fechaSalida
+                    """;
+        } else {
+            filtroFecha = """
+                      AND (
+                            vp.fecha_salida > CURRENT_DATE
+                            OR (
+                                vp.fecha_salida = CURRENT_DATE
+                                AND vp.hora_salida >= LOCALTIME
+                            )
+                      )
+                    """;
+        }
+
         return """
                 SELECT
                     vo.id AS vuelo_operado_id,
@@ -317,20 +339,7 @@ public class ClienteVueloDisponibleServiceImpl implements ClienteVueloDisponible
 
                 WHERE vp.aeropuerto_salida_id = :aeropuertoSalidaId
                   AND vp.aeropuerto_llegada_id = :aeropuertoLlegadaId
-                  AND (
-                        (:fechaSalida IS NOT NULL AND vp.fecha_salida = :fechaSalida)
-                        OR
-                        (
-                            :fechaSalida IS NULL
-                            AND (
-                                vp.fecha_salida > CURRENT_DATE
-                                OR (
-                                    vp.fecha_salida = CURRENT_DATE
-                                    AND vp.hora_salida >= CURRENT_TIME
-                                )
-                            )
-                        )
-                  )
+                """ + filtroFecha + """
                   AND UPPER(sc.name) = 'ACTIVO'
                   AND UPPER(ev.nombre) = 'PROGRAMADO'
 
@@ -664,7 +673,7 @@ public class ClienteVueloDisponibleServiceImpl implements ClienteVueloDisponible
                         vp.fecha_salida > CURRENT_DATE
                         OR (
                             vp.fecha_salida = CURRENT_DATE
-                            AND vp.hora_salida >= CURRENT_TIME
+                            AND vp.hora_salida >= LOCALTIME
                         )
                   )
                   AND UPPER(sc.name) = 'ACTIVO'
