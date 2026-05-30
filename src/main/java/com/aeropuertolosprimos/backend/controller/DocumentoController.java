@@ -1,8 +1,8 @@
 package com.aeropuertolosprimos.backend.controller;
 
 import com.aeropuertolosprimos.backend.dto.PagoResponse;
-import com.aeropuertolosprimos.backend.dto.ReservaResponse;
 import com.aeropuertolosprimos.backend.dto.ReservaBoletoItemResponse;
+import com.aeropuertolosprimos.backend.dto.ReservaResponse;
 import com.aeropuertolosprimos.backend.exception.BusinessException;
 import com.aeropuertolosprimos.backend.model.Boleto;
 import com.aeropuertolosprimos.backend.repository.BoletoRepository;
@@ -37,28 +37,36 @@ public class DocumentoController {
         ReservaResponse reserva = reservaService.obtenerPorId(reservaId);
 
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("codigoReserva", reserva.getCodigoReserva());
-        data.put("reservaId", reserva.getReservaId());
-        data.put("vueloOperadoId", reserva.getVueloOperadoId());
-        data.put("estadoReserva", reserva.getEstadoReserva());
-        data.put("subtotal", reserva.getSubtotal());
-        data.put("recargoTotal", reserva.getRecargoTotal());
-        data.put("total", reserva.getTotal());
-        data.put("boletoId", reserva.getBoletoId());
-        data.put("codigoBoleto", reserva.getCodigoBoleto());
-        data.put("codigoPaseAbordar", reserva.getCodigoPaseAbordar());
-        data.put("estadoBoleto", reserva.getEstadoBoleto());
-        data.put("asiento", reserva.getAsiento());
-        data.put("cantidadMaletas", reserva.getCantidadMaletas());
+
+        data.put("Código reserva", reserva.getCodigoReserva());
+        data.put("Estado reserva", reserva.getEstadoReserva());
+
+        data.put("Código boleto", reserva.getCodigoBoleto());
+        data.put("Pase de abordar", reserva.getCodigoPaseAbordar());
+        data.put("Estado boleto", reserva.getEstadoBoleto());
+
+        data.put("Asiento", reserva.getAsiento());
+        data.put("Cantidad de maletas", reserva.getCantidadMaletas());
+
+        data.put("Subtotal", reserva.getSubtotal());
+        data.put("Recargo total", reserva.getRecargoTotal());
+        data.put("Total", reserva.getTotal());
 
         byte[] pdf = pdfExportService.simpleKeyValuePdf(
                 "Reserva / Boleto",
                 data
         );
 
+        String base = "reserva_" + valorArchivo(
+                reserva.getCodigoReserva(),
+                "sin_codigo"
+        );
+
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=" + ExportFileName.withTimestamp("reserva_" + reserva.getCodigoReserva(), "pdf"))
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=" + ExportFileName.withTimestamp(base, "pdf")
+                )
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(pdf);
     }
@@ -75,33 +83,46 @@ public class DocumentoController {
         }
 
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("serie", pago.getFactura().getSerie());
-        data.put("numero", pago.getFactura().getNumero());
-        data.put("uuidFel", pago.getFactura().getUuidFel());
-        data.put("estadoFel", pago.getFactura().getEstadoFel());
-        data.put("nit", pago.getFactura().getNit());
-        data.put("nombreCliente", pago.getFactura().getNombreCliente());
-        data.put("fechaFactura", pago.getFactura().getFechaFactura());
-        data.put("pagoId", pago.getId());
-        data.put("reservaId", pago.getReservaId());
-        data.put("codigoReserva", pago.getCodigoReserva());
-        data.put("metodoPago", pago.getMetodoPago());
-        data.put("monto", pago.getMonto());
-        data.put("recargoEquipaje", pago.getRecargoEquipaje());
-        data.put("totalReserva", pago.getTotalReserva());
-        data.put("estadoPago", pago.getEstadoPago());
-        data.put("fechaPago", pago.getFechaPago());
+
+        data.put("Serie", pago.getFactura().getSerie());
+        data.put("Número", pago.getFactura().getNumero());
+        data.put("UUID FEL", pago.getFactura().getUuidFel());
+        data.put("Estado FEL", pago.getFactura().getEstadoFel());
+        data.put("Fecha factura", pago.getFactura().getFechaFactura());
+
+        data.put("NIT", pago.getFactura().getNit());
+        data.put("Nombre cliente", pago.getFactura().getNombreCliente());
+
+        data.put("Código reserva", pago.getCodigoReserva());
+        data.put("Método de pago", pago.getMetodoPago());
+        data.put("Monto pagado", pago.getMonto());
+        data.put("Recargo equipaje", pago.getRecargoEquipaje());
+        data.put("Total reserva", pago.getTotalReserva());
+        data.put("Estado pago", pago.getEstadoPago());
+        data.put("Fecha pago", pago.getFechaPago());
 
         byte[] pdf = pdfExportService.simpleKeyValuePdf(
                 "Factura",
                 data
         );
 
-        String base = "factura_" + pago.getFactura().getSerie() + "_" + pago.getFactura().getNumero();
+        String serie = valorArchivo(
+                pago.getFactura().getSerie(),
+                "FEL"
+        );
+
+        String numero = valorArchivo(
+                pago.getFactura().getNumero(),
+                "sin_numero"
+        );
+
+        String base = "factura_" + serie + "_" + numero;
 
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=" + ExportFileName.withTimestamp(base, "pdf"))
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=" + ExportFileName.withTimestamp(base, "pdf")
+                )
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(pdf);
     }
@@ -114,42 +135,66 @@ public class DocumentoController {
         Boleto boleto = boletoRepository.findById(boletoId)
                 .orElseThrow(() -> new BusinessException("Boleto no encontrado"));
 
-        ReservaResponse reserva = reservaService.obtenerPorId(boleto.getReservaId());
+        ReservaResponse reserva = reservaService.obtenerPorId(
+                boleto.getReservaId()
+        );
 
         ReservaBoletoItemResponse item = null;
 
         if (reserva.getBoletos() != null) {
-            item = reserva.getBoletos().stream()
-                    .filter(b -> b != null && b.getBoletoId() != null && b.getBoletoId().equals(boletoId))
+            item = reserva.getBoletos()
+                    .stream()
+                    .filter(b -> b != null
+                            && b.getBoletoId() != null
+                            && b.getBoletoId().equals(boletoId))
                     .findFirst()
                     .orElse(null);
         }
 
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("codigoReserva", reserva.getCodigoReserva());
-        data.put("reservaId", reserva.getReservaId());
-        data.put("boletoId", boletoId);
-        data.put("codigoBoleto", boleto.getCodigoBoleto());
-        data.put("codigoPaseAbordar", boleto.getCodigoPaseAbordar());
-        data.put("vueloOperadoId", boleto.getVueloOperadoId());
-        data.put("total", boleto.getTotal());
+
+        data.put("Código reserva", reserva.getCodigoReserva());
+        data.put("Código boleto", boleto.getCodigoBoleto());
+        data.put("Pase de abordar", boleto.getCodigoPaseAbordar());
+        data.put("Total boleto", boleto.getTotal());
 
         if (item != null) {
-            data.put("pasajero", item.getNombrePasajero());
-            data.put("pasaporte", item.getPasaporte());
-            data.put("asiento", item.getAsiento());
-            data.put("cantidadMaletas", item.getCantidadMaletas());
+            data.put("Pasajero", item.getNombrePasajero());
+            data.put("Pasaporte", item.getPasaporte());
+            data.put("Asiento", item.getAsiento());
+            data.put("Cantidad de maletas", item.getCantidadMaletas());
         }
 
         byte[] pdf = pdfExportService.simpleKeyValuePdf(
-                "Boleto / Pase de abordar",
+                "Boleto",
                 data
         );
 
+        String base = "boleto_" + valorArchivo(
+                boleto.getCodigoBoleto(),
+                "sin_codigo"
+        );
+
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=" + ExportFileName.withTimestamp("boleto_" + boleto.getCodigoBoleto(), "pdf"))
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=" + ExportFileName.withTimestamp(base, "pdf")
+                )
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(pdf);
+    }
+
+    private String valorArchivo(
+            String value,
+            String fallback
+    ) {
+
+        if (value == null || value.trim().isEmpty()) {
+            return fallback;
+        }
+
+        return value
+                .trim()
+                .replaceAll("[^a-zA-Z0-9._-]", "_");
     }
 }
