@@ -14,6 +14,16 @@ public class AbordajeVueloPendienteResponse {
 
     private Integer vueloOperadoId;
 
+    private Integer segmentoOperadoId;
+
+    private Integer ordenSegmento;
+
+    private Integer segmentoActualOrden;
+
+    private Integer cantidadSegmentos;
+
+    private String tipoSegmentoVuelo;
+
     private String codigoVuelo;
 
     private Integer aerolineaId;

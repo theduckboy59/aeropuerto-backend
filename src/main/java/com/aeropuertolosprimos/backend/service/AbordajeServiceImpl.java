@@ -1,4 +1,5 @@
 package com.aeropuertolosprimos.backend.service;
+
 import com.aeropuertolosprimos.backend.dto.AbordajeEquipajeRequest;
 import com.aeropuertolosprimos.backend.dto.AbordajeRequest;
 import com.aeropuertolosprimos.backend.dto.AbordajeResponse;
@@ -45,7 +46,6 @@ import com.aeropuertolosprimos.backend.repository.PagoRepository;
 import com.aeropuertolosprimos.backend.repository.PasajeroRepository;
 import com.aeropuertolosprimos.backend.repository.PuertaEmbarqueRepository;
 import com.aeropuertolosprimos.backend.repository.SegmentoOperadoRepository;
-//import com.aeropuertolosprimos.backend.repository.StatusCatalogRepository;
 import com.aeropuertolosprimos.backend.repository.TipoEquipajeRepository;
 import com.aeropuertolosprimos.backend.repository.VueloOperadoRepository;
 import com.aeropuertolosprimos.backend.repository.VueloProgramadoRepository;
@@ -69,8 +69,6 @@ public class AbordajeServiceImpl implements AbordajeService {
     private static final BigDecimal PESO_MAXIMO_MALETA = new BigDecimal("23.00");
     private static final BigDecimal RECARGO_POR_KG_EXCEDENTE = new BigDecimal("10.00");
 
-    //private static final String STATUS_ACTIVO = "ACTIVO";
-
     private static final String ESTADO_BOLETO_PENDIENTE = "PENDIENTE_ABORDAR";
     private static final String ESTADO_BOLETO_ABORDADO = "ABORDADO";
     private static final String ESTADO_BOLETO_CANCELADO = "CANCELADO";
@@ -89,6 +87,8 @@ public class AbordajeServiceImpl implements AbordajeService {
     private static final String ESTADO_ABORDAJE_ABORDADO = "ABORDADO";
     private static final String ESTADO_ABORDAJE_CANCELADO = "CANCELADO";
 
+    private static final String ESTADO_VUELO_PROGRAMADO = "PROGRAMADO";
+    private static final String ESTADO_VUELO_ABORDANDO = "ABORDANDO";
     private static final String ESTADO_VUELO_EN_VUELO = "EN_VUELO";
 
     private static final String TIPO_EQUIPAJE_MALETA = "MALETA";
@@ -136,9 +136,8 @@ public class AbordajeServiceImpl implements AbordajeService {
         }
 
         List<String> estadosAbordaje = List.of(
-                "abordando",
-                "pendiente abordar",
-                "pendiente_abordar"
+                ESTADO_VUELO_PROGRAMADO.toLowerCase(),
+                ESTADO_VUELO_ABORDANDO.toLowerCase()
         );
 
         Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
@@ -161,16 +160,18 @@ public class AbordajeServiceImpl implements AbordajeService {
     @Transactional(readOnly = true)
     public AbordajeResponse buscar(
             Integer vueloOperadoId,
-            String pasaporte
+            String pasaporte,
+            Integer segmentoOperadoId
     ) {
 
         ContextoAbordaje contexto = resolverContextoAbordaje(
                 vueloOperadoId,
-                pasaporte
+                pasaporte,
+                segmentoOperadoId
         );
 
         validarCheckInObligatorio(
-                contexto.boleto
+                contexto.boletoSegmento
         );
 
         return mapResponse(
@@ -179,7 +180,7 @@ public class AbordajeServiceImpl implements AbordajeService {
                 contexto.boleto.getRecargoEquipaje(),
                 false,
                 null,
-                "Boleto encontrado y check-in validado"
+                "Boleto encontrado y check-in validado para el segmento actual"
         );
     }
 
@@ -193,11 +194,12 @@ public class AbordajeServiceImpl implements AbordajeService {
 
         ContextoAbordaje contexto = resolverContextoAbordaje(
                 request.getVueloOperadoId(),
-                request.getPasaporte()
+                request.getPasaporte(),
+                request.getSegmentoOperadoId()
         );
 
         validarCheckInObligatorio(
-                contexto.boleto
+                contexto.boletoSegmento
         );
 
         EstadoBoleto estadoPendiente = obtenerEstadoBoleto(
@@ -292,14 +294,15 @@ public class AbordajeServiceImpl implements AbordajeService {
                 recargoPorPeso,
                 false,
                 null,
-                "Pasajero abordado correctamente"
+                "Pasajero abordado correctamente en el segmento actual"
         );
     }
 
     @Override
     @Transactional
     public FinalizarAbordajeResponse finalizarAbordaje(
-            Integer vueloOperadoId
+            Integer vueloOperadoId,
+            Integer segmentoOperadoId
     ) {
 
         if (vueloOperadoId == null) {
@@ -309,8 +312,9 @@ public class AbordajeServiceImpl implements AbordajeService {
         VueloOperado vueloOperado = vueloOperadoRepository.findById(vueloOperadoId)
                 .orElseThrow(() -> new BusinessException("Vuelo operado no encontrado"));
 
-        SegmentoOperado segmentoActual = obtenerSegmentoActual(
-                vueloOperado
+        SegmentoOperado segmentoActual = resolverSegmentoActual(
+                vueloOperado,
+                segmentoOperadoId
         );
 
         EstadoBoleto estadoPendiente = obtenerEstadoBoleto(
@@ -373,27 +377,14 @@ public class AbordajeServiceImpl implements AbordajeService {
 
             if (Objects.equals(boletoSegmentoActual.getEstadoBoletoId(), estadoPendiente.getId())) {
 
-                boletoSegmentoActual.setEstadoBoletoId(
-                        estadoCancelado.getId()
-                );
-
-                boletoSegmentoRepository.save(boletoSegmentoActual);
-
-                cancelarAsientosDeSegmento(
-                        boletoSegmentoActual,
+                cancelarSegmentosPendientesDesdeOrden(
+                        boleto,
+                        segmentosBoleto,
+                        segmentoActual,
+                        estadoPendiente,
+                        estadoCancelado,
                         estadoBloqueado
                 );
-
-                cancelarEquipajeDeSegmento(
-                        boleto,
-                        segmentoActual.getId()
-                );
-
-                boleto.setEstadoBoletoId(
-                        estadoCancelado.getId()
-                );
-
-                boletoRepository.save(boleto);
 
                 registrarMovimientoAbordajeCancelado(
                         boleto,
@@ -402,6 +393,12 @@ public class AbordajeServiceImpl implements AbordajeService {
                         segmentoActual,
                         estadoAbordajeCancelado
                 );
+
+                boleto.setEstadoBoletoId(
+                        estadoCancelado.getId()
+                );
+
+                boletoRepository.save(boleto);
 
                 cancelados++;
             }
@@ -430,10 +427,14 @@ public class AbordajeServiceImpl implements AbordajeService {
         FinalizarAbordajeResponse response = new FinalizarAbordajeResponse();
 
         response.setVueloOperadoId(vueloOperado.getId());
+        response.setSegmentoOperadoId(segmentoActual.getId());
+        response.setOrdenSegmento(segmentoActual.getOrdenSegmento());
+        response.setSegmentoActualOrden(vueloOperado.getSegmentoActualOrden());
+        response.setCantidadSegmentos(vueloOperado.getCantidadSegmentos());
         response.setEstadoVuelo(estadoEnVuelo.getNombre());
         response.setBoletosAbordados(abordados);
         response.setBoletosCancelados(cancelados);
-        response.setMensaje("Se completó el abordaje y el vuelo pasó a EN_VUELO");
+        response.setMensaje("Se completó el abordaje del segmento actual y el vuelo pasó a EN_VUELO");
 
         return response;
     }
@@ -458,7 +459,8 @@ public class AbordajeServiceImpl implements AbordajeService {
 
     private ContextoAbordaje resolverContextoAbordaje(
             Integer vueloOperadoId,
-            String pasaporte
+            String pasaporte,
+            Integer segmentoOperadoId
     ) {
 
         if (vueloOperadoId == null ||
@@ -471,8 +473,9 @@ public class AbordajeServiceImpl implements AbordajeService {
         VueloOperado vueloOperado = vueloOperadoRepository.findById(vueloOperadoId)
                 .orElseThrow(() -> new BusinessException("Vuelo operado no encontrado"));
 
-        SegmentoOperado segmentoActual = obtenerSegmentoActual(
-                vueloOperado
+        SegmentoOperado segmentoActual = resolverSegmentoActual(
+                vueloOperado,
+                segmentoOperadoId
         );
 
         Pasajero pasajero = pasajeroRepository
@@ -507,7 +510,7 @@ public class AbordajeServiceImpl implements AbordajeService {
                 )
                 .findFirst()
                 .orElseThrow(() ->
-                        new BusinessException("El pasajero no tiene segmento asociado al segmento actual del vuelo")
+                        new BusinessException("El pasajero no tiene boleto para el segmento actual del vuelo")
                 );
 
         return new ContextoAbordaje(
@@ -518,29 +521,52 @@ public class AbordajeServiceImpl implements AbordajeService {
         );
     }
 
+    private SegmentoOperado resolverSegmentoActual(
+            VueloOperado vueloOperado,
+            Integer segmentoOperadoId
+    ) {
+
+        SegmentoOperado segmento;
+
+        if (segmentoOperadoId != null) {
+            segmento = segmentoOperadoRepository.findById(segmentoOperadoId)
+                    .orElseThrow(() -> new BusinessException("Segmento operado no encontrado"));
+
+            if (!Objects.equals(segmento.getVueloOperadoId(), vueloOperado.getId())) {
+                throw new BusinessException("El segmento no pertenece al vuelo operado seleccionado");
+            }
+
+            Integer ordenActual = vueloOperado.getSegmentoActualOrden() != null
+                    ? vueloOperado.getSegmentoActualOrden()
+                    : 1;
+
+            if (!Objects.equals(segmento.getOrdenSegmento(), ordenActual)) {
+                throw new BusinessException("Solo se puede abordar el segmento actual del vuelo");
+            }
+
+            return segmento;
+        }
+
+        return obtenerSegmentoActual(
+                vueloOperado
+        );
+    }
+
     private void validarCheckInObligatorio(
-            Boleto boleto
+            BoletoSegmento boletoSegmento
     ) {
 
         EstadoCheckIn estadoRealizado = estadoCheckInRepository
                 .findByNombreIgnoreCase(ESTADO_CHECKIN_REALIZADO)
                 .orElseThrow(() -> new BusinessException("Estado de check-in REALIZADO no encontrado"));
 
-        List<BoletoSegmento> segmentos = boletoSegmentoRepository
-                .findByBoletoIdOrderByOrdenSegmentoAsc(
-                        boleto.getId()
-                );
-
-        boolean tieneCheckIn = segmentos.stream()
-                .anyMatch(segmento ->
-                        checkInRepository.existsByBoletoSegmentoIdAndEstadoCheckinId(
-                                segmento.getId(),
-                                estadoRealizado.getId()
-                        )
-                );
+        boolean tieneCheckIn = checkInRepository.existsByBoletoSegmentoIdAndEstadoCheckinId(
+                boletoSegmento.getId(),
+                estadoRealizado.getId()
+        );
 
         if (!tieneCheckIn) {
-            throw new BusinessException("El pasajero debe realizar check-in antes de abordar");
+            throw new BusinessException("El pasajero debe realizar check-in del segmento actual antes de abordar");
         }
     }
 
@@ -790,6 +816,51 @@ public class AbordajeServiceImpl implements AbordajeService {
 
                 equipajeRepository.save(equipaje);
             }
+        }
+    }
+
+    private void cancelarSegmentosPendientesDesdeOrden(
+            Boleto boleto,
+            List<BoletoSegmento> segmentosBoleto,
+            SegmentoOperado segmentoActual,
+            EstadoBoleto estadoPendiente,
+            EstadoBoleto estadoCancelado,
+            EstadoAsiento estadoBloqueado
+    ) {
+
+        Integer ordenActual = segmentoActual.getOrdenSegmento() != null
+                ? segmentoActual.getOrdenSegmento()
+                : 1;
+
+        for (BoletoSegmento segmento : segmentosBoleto) {
+
+            Integer ordenSegmento = segmento.getOrdenSegmento() != null
+                    ? segmento.getOrdenSegmento()
+                    : 1;
+
+            if (ordenSegmento < ordenActual) {
+                continue;
+            }
+
+            if (!Objects.equals(segmento.getEstadoBoletoId(), estadoPendiente.getId())) {
+                continue;
+            }
+
+            segmento.setEstadoBoletoId(
+                    estadoCancelado.getId()
+            );
+
+            boletoSegmentoRepository.save(segmento);
+
+            cancelarAsientosDeSegmento(
+                    segmento,
+                    estadoBloqueado
+            );
+
+            cancelarEquipajeDeSegmento(
+                    boleto,
+                    segmento.getSegmentoOperadoId()
+            );
         }
     }
 
@@ -1043,6 +1114,8 @@ public class AbordajeServiceImpl implements AbordajeService {
         response.setBoletoSegmentoId(contexto.boletoSegmento.getId());
         response.setSegmentoOperadoId(contexto.segmentoOperado.getId());
         response.setOrdenSegmento(contexto.boletoSegmento.getOrdenSegmento());
+        response.setSegmentoActualOrden(contexto.vueloOperado.getSegmentoActualOrden());
+        response.setCantidadSegmentos(contexto.vueloOperado.getCantidadSegmentos());
 
         response.setRecargoEquipaje(
                 recargo != null ? recargo : BigDecimal.ZERO

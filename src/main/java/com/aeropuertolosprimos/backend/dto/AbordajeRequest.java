@@ -9,6 +9,8 @@ public class AbordajeRequest {
 
     private Integer vueloOperadoId;
 
+    private Integer segmentoOperadoId;
+
     private String pasaporte;
 
     private Integer cantidadMaletasPresentadas;

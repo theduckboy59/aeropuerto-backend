@@ -27,6 +27,10 @@ public class AbordajeResponse {
 
     private Integer ordenSegmento;
 
+    private Integer segmentoActualOrden;
+
+    private Integer cantidadSegmentos;
+
     private String estadoBoleto;
 
     private String estadoBoletoSegmento;

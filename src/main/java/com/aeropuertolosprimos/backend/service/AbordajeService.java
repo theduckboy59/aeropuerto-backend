@@ -15,7 +15,8 @@ public interface AbordajeService {
 
     AbordajeResponse buscar(
             Integer vueloOperadoId,
-            String pasaporte
+            String pasaporte,
+            Integer segmentoOperadoId
     );
 
     AbordajeResponse registrarAbordaje(
@@ -23,6 +24,7 @@ public interface AbordajeService {
     );
 
     FinalizarAbordajeResponse finalizarAbordaje(
-            Integer vueloOperadoId
+            Integer vueloOperadoId,
+            Integer segmentoOperadoId
     );
 }

@@ -27,11 +27,13 @@ public class AbordajeController {
     @GetMapping("/buscar")
     public AbordajeResponse buscar(
             @RequestParam Integer vueloOperadoId,
-            @RequestParam String pasaporte
+            @RequestParam String pasaporte,
+            @RequestParam(required = false) Integer segmentoOperadoId
     ) {
         return service.buscar(
                 vueloOperadoId,
-                pasaporte
+                pasaporte,
+                segmentoOperadoId
         );
     }
 
@@ -39,17 +41,17 @@ public class AbordajeController {
     public AbordajeResponse registrarAbordaje(
             @RequestBody AbordajeRequest request
     ) {
-        return service.registrarAbordaje(
-                request
-        );
+        return service.registrarAbordaje(request);
     }
 
     @PatchMapping("/vuelo/{vueloOperadoId}/finalizar")
     public FinalizarAbordajeResponse finalizarAbordaje(
-            @PathVariable Integer vueloOperadoId
+            @PathVariable Integer vueloOperadoId,
+            @RequestParam(required = false) Integer segmentoOperadoId
     ) {
         return service.finalizarAbordaje(
-                vueloOperadoId
+                vueloOperadoId,
+                segmentoOperadoId
         );
     }
 }

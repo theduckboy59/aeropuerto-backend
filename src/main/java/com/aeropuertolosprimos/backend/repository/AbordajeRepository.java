@@ -18,6 +18,11 @@ public interface AbordajeRepository extends JpaRepository<Abordaje, Integer> {
     @Query("""
             SELECT new com.aeropuertolosprimos.backend.dto.AbordajeVueloPendienteResponse(
                 vo.id,
+                so.id,
+                so.ordenSegmento,
+                vo.segmentoActualOrden,
+                vo.cantidadSegmentos,
+                tsv.nombre,
                 v.codigoVuelo,
                 v.aerolineaId,
                 aeropuertoSalida.id,
@@ -26,25 +31,32 @@ public interface AbordajeRepository extends JpaRepository<Abordaje, Integer> {
                 aeropuertoLlegada.id,
                 aeropuertoLlegada.nombre,
                 aeropuertoLlegada.codigoIata,
-                vp.fechaSalida,
-                vp.horaSalida,
+                sv.fechaSalida,
+                sv.horaSalida,
                 ev.nombre
             )
             FROM VueloOperado vo,
                  VueloProgramado vp,
                  Vuelo v,
                  EstadoVuelo ev,
+                 TipoSegmentoVuelo tsv,
+                 SegmentoOperado so,
+                 SegmentoVuelo sv,
                  Aeropuerto aeropuertoSalida,
                  Aeropuerto aeropuertoLlegada
             WHERE vp.id = vo.vueloProgramadoId
               AND v.id = vp.vueloId
               AND ev.id = vo.estadoVueloId
-              AND aeropuertoSalida.id = vp.aeropuertoSalidaId
-              AND aeropuertoLlegada.id = vp.aeropuertoLlegadaId
+              AND tsv.id = vo.tipoSegmentoVueloId
+              AND so.vueloOperadoId = vo.id
+              AND so.ordenSegmento = vo.segmentoActualOrden
+              AND sv.id = so.segmentoVueloId
+              AND aeropuertoSalida.id = sv.aeropuertoSalidaId
+              AND aeropuertoLlegada.id = sv.aeropuertoLlegadaId
               AND v.estadoId = :estadoActivoId
               AND v.aerolineaId = :aerolineaId
               AND LOWER(ev.nombre) IN :estadosAbordaje
-            ORDER BY vp.fechaSalida ASC, vp.horaSalida ASC
+            ORDER BY sv.fechaSalida ASC, sv.horaSalida ASC, v.codigoVuelo ASC, so.ordenSegmento ASC
             """)
     List<AbordajeVueloPendienteResponse> listarVuelosPendientesParaAbordaje(
             @Param("aerolineaId") Integer aerolineaId,
