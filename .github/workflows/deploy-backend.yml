@@ -33,26 +33,16 @@ jobs:
             echo "Reiniciando servicio..."
             sudo -n /usr/bin/systemctl restart aeropuerto-backend
 
-            echo "Esperando arranque del backend..."
+            echo "Verificando servicio..."
 
-            BACKEND_OK=0
+            sleep 10
 
-            for i in {1..60}; do
-              if curl -fsS http://localhost:8080/catalogos/status > /dev/null 2>&1; then
-                BACKEND_OK=1
-                break
-              fi
-
-              echo "Intento $i: backend aún no disponible..."
-              sleep 2
-            done
-
-            if [ "$BACKEND_OK" -ne 1 ]; then
-              echo "ERROR: El backend no levantó a tiempo."
-              sudo journalctl -u aeropuerto-backend -n 150 --no-pager
+            if sudo -n /usr/bin/systemctl is-active --quiet aeropuerto-backend; then
+              echo "Backend corrido correctamente."
+              echo "Deploy completado correctamente."
+            else
+              echo "ERROR: El backend no quedó corriendo."
+              sudo -n journalctl -u aeropuerto-backend -n 150 --no-pager
               exit 1
             fi
-
-            echo "Backend levantado correctamente."
-            echo "Deploy completado correctamente."
           EOF

@@ -7,7 +7,7 @@ import java.util.List;
 
 @Data
 @Builder
-public class ModeloAvionPreviewResponse {
+public class  ModeloAvionPreviewResponse {
 
     private List<SeatLevel> niveles;
 
