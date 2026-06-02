@@ -537,10 +537,14 @@ public class ClienteVueloDisponibleServiceImpl implements ClienteVueloDisponible
                         "ap_salida.id AS aeropuerto_salida_id, " +
                         "ap_salida.nombre AS aeropuerto_salida_nombre, " +
                         "ap_salida.codigo_iata AS aeropuerto_salida_codigo_iata, " +
+                        "ap_salida.pais AS aeropuerto_salida_pais, " +
+                        "ap_salida.ciudad AS aeropuerto_salida_ciudad, " +
 
                         "ap_llegada.id AS aeropuerto_llegada_id, " +
                         "ap_llegada.nombre AS aeropuerto_llegada_nombre, " +
                         "ap_llegada.codigo_iata AS aeropuerto_llegada_codigo_iata, " +
+                        "ap_llegada.pais AS aeropuerto_llegada_pais, " +
+                        "ap_llegada.ciudad AS aeropuerto_llegada_ciudad, " +
 
                         "vp.puerta_embarque_salida AS puerta_embarque_salida, " +
                         "vp.puerta_embarque_llegada AS puerta_embarque_llegada, " +
@@ -654,10 +658,14 @@ public class ClienteVueloDisponibleServiceImpl implements ClienteVueloDisponible
                         "ap_salida.id AS aeropuerto_salida_id, " +
                         "ap_salida.nombre AS aeropuerto_salida_nombre, " +
                         "ap_salida.codigo_iata AS aeropuerto_salida_codigo_iata, " +
+                        "ap_salida.pais AS aeropuerto_salida_pais, " +
+                        "ap_salida.ciudad AS aeropuerto_salida_ciudad, " +
 
                         "ap_llegada.id AS aeropuerto_llegada_id, " +
                         "ap_llegada.nombre AS aeropuerto_llegada_nombre, " +
                         "ap_llegada.codigo_iata AS aeropuerto_llegada_codigo_iata, " +
+                        "ap_llegada.pais AS aeropuerto_llegada_pais, " +
+                        "ap_llegada.ciudad AS aeropuerto_llegada_ciudad, " +
 
                         "vp.puerta_embarque_salida AS puerta_embarque_salida, " +
                         "vp.puerta_embarque_llegada AS puerta_embarque_llegada, " +
@@ -800,10 +808,14 @@ public class ClienteVueloDisponibleServiceImpl implements ClienteVueloDisponible
                         "ap_salida.id AS aeropuerto_salida_id, " +
                         "ap_salida.nombre AS aeropuerto_salida_nombre, " +
                         "ap_salida.codigo_iata AS aeropuerto_salida_codigo_iata, " +
+                        "ap_salida.pais AS aeropuerto_salida_pais, " +
+                        "ap_salida.ciudad AS aeropuerto_salida_ciudad, " +
 
                         "ap_llegada.id AS aeropuerto_llegada_id, " +
                         "ap_llegada.nombre AS aeropuerto_llegada_nombre, " +
                         "ap_llegada.codigo_iata AS aeropuerto_llegada_codigo_iata, " +
+                        "ap_llegada.pais AS aeropuerto_llegada_pais, " +
+                        "ap_llegada.ciudad AS aeropuerto_llegada_ciudad, " +
 
                         "sv.fecha_salida AS fecha_salida, " +
                         "sv.hora_salida AS hora_salida, " +
@@ -936,10 +948,14 @@ public class ClienteVueloDisponibleServiceImpl implements ClienteVueloDisponible
                 response.setAeropuertoSalidaId(getInteger(rs, "aeropuerto_salida_id"));
                 response.setAeropuertoSalidaNombre(rs.getString("aeropuerto_salida_nombre"));
                 response.setAeropuertoSalidaCodigoIata(rs.getString("aeropuerto_salida_codigo_iata"));
+                response.setAeropuertoSalidaPais(rs.getString("aeropuerto_salida_pais"));
+                response.setAeropuertoSalidaCiudad(rs.getString("aeropuerto_salida_ciudad"));
 
                 response.setAeropuertoLlegadaId(getInteger(rs, "aeropuerto_llegada_id"));
                 response.setAeropuertoLlegadaNombre(rs.getString("aeropuerto_llegada_nombre"));
                 response.setAeropuertoLlegadaCodigoIata(rs.getString("aeropuerto_llegada_codigo_iata"));
+                response.setAeropuertoLlegadaPais(rs.getString("aeropuerto_llegada_pais"));
+                response.setAeropuertoLlegadaCiudad(rs.getString("aeropuerto_llegada_ciudad"));
 
                 response.setPuertaEmbarqueSalida(rs.getString("puerta_embarque_salida"));
                 response.setPuertaEmbarqueLlegada(rs.getString("puerta_embarque_llegada"));
@@ -983,10 +999,14 @@ public class ClienteVueloDisponibleServiceImpl implements ClienteVueloDisponible
                 response.setAeropuertoSalidaId(getInteger(rs, "aeropuerto_salida_id"));
                 response.setAeropuertoSalidaNombre(rs.getString("aeropuerto_salida_nombre"));
                 response.setAeropuertoSalidaCodigoIata(rs.getString("aeropuerto_salida_codigo_iata"));
+                response.setAeropuertoSalidaPais(rs.getString("aeropuerto_salida_pais"));
+                response.setAeropuertoSalidaCiudad(rs.getString("aeropuerto_salida_ciudad"));
 
                 response.setAeropuertoLlegadaId(getInteger(rs, "aeropuerto_llegada_id"));
                 response.setAeropuertoLlegadaNombre(rs.getString("aeropuerto_llegada_nombre"));
                 response.setAeropuertoLlegadaCodigoIata(rs.getString("aeropuerto_llegada_codigo_iata"));
+                response.setAeropuertoLlegadaPais(rs.getString("aeropuerto_llegada_pais"));
+                response.setAeropuertoLlegadaCiudad(rs.getString("aeropuerto_llegada_ciudad"));
 
                 response.setFechaSalida(getLocalDate(rs, "fecha_salida"));
                 response.setHoraSalida(getLocalTime(rs, "hora_salida"));

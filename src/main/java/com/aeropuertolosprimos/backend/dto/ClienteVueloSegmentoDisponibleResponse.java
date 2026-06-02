@@ -20,11 +20,19 @@ public class ClienteVueloSegmentoDisponibleResponse {
 
     private String aeropuertoSalidaCodigoIata;
 
+    private String aeropuertoSalidaPais;
+
+    private String aeropuertoSalidaCiudad;
+
     private Integer aeropuertoLlegadaId;
 
     private String aeropuertoLlegadaNombre;
 
     private String aeropuertoLlegadaCodigoIata;
+
+    private String aeropuertoLlegadaPais;
+
+    private String aeropuertoLlegadaCiudad;
 
     private LocalDate fechaSalida;
 
