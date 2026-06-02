@@ -1,7 +1,9 @@
 package com.aeropuertolosprimos.backend.service;
 
+import com.aeropuertolosprimos.backend.dto.ClienteAeropuertoDisponibleResponse;
 import com.aeropuertolosprimos.backend.dto.ClienteDestinoAutorizadoResponse;
 import com.aeropuertolosprimos.backend.dto.ClienteFechaDisponibleResponse;
+import com.aeropuertolosprimos.backend.dto.ClienteUbicacionDisponibleResponse;
 import com.aeropuertolosprimos.backend.dto.ClienteVueloDisponibleResponse;
 import com.aeropuertolosprimos.backend.dto.ClienteVueloSegmentoDisponibleResponse;
 import com.aeropuertolosprimos.backend.exception.BusinessException;
@@ -29,16 +31,122 @@ public class ClienteVueloDisponibleServiceImpl implements ClienteVueloDisponible
 
     @Override
     @Transactional(readOnly = true)
+    public List<ClienteUbicacionDisponibleResponse> buscarOrigenes(String q) {
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        boolean filtrar = tieneTexto(q);
+
+        if (filtrar) {
+            params.addValue("q", like(q));
+        }
+
+        return jdbc.query(
+                sqlOrigenes(filtrar),
+                params,
+                ubicacionMapper()
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClienteAeropuertoDisponibleResponse> buscarAeropuertosSalida(
+            String pais,
+            String ciudad,
+            String q
+    ) {
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        boolean filtrarPais = tieneTexto(pais);
+        boolean filtrarCiudad = tieneTexto(ciudad);
+        boolean filtrarQ = tieneTexto(q);
+
+        if (filtrarPais) {
+            params.addValue("pais", normalizar(pais));
+        }
+
+        if (filtrarCiudad) {
+            params.addValue("ciudad", normalizar(ciudad));
+        }
+
+        if (filtrarQ) {
+            params.addValue("q", like(q));
+        }
+
+        return jdbc.query(
+                sqlAeropuertosSalida(filtrarPais, filtrarCiudad, filtrarQ),
+                params,
+                aeropuertoDisponibleMapper()
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClienteUbicacionDisponibleResponse> buscarDestinosUbicaciones(
+            Integer aeropuertoSalidaId,
+            String q
+    ) {
+        validarAeropuertoSalida(aeropuertoSalidaId);
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("aeropuertoSalidaId", aeropuertoSalidaId);
+
+        boolean filtrar = tieneTexto(q);
+
+        if (filtrar) {
+            params.addValue("q", like(q));
+        }
+
+        return jdbc.query(
+                sqlDestinosUbicaciones(filtrar),
+                params,
+                ubicacionMapper()
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClienteAeropuertoDisponibleResponse> buscarAeropuertosDestino(
+            Integer aeropuertoSalidaId,
+            String pais,
+            String ciudad,
+            String q
+    ) {
+        validarAeropuertoSalida(aeropuertoSalidaId);
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("aeropuertoSalidaId", aeropuertoSalidaId);
+
+        boolean filtrarPais = tieneTexto(pais);
+        boolean filtrarCiudad = tieneTexto(ciudad);
+        boolean filtrarQ = tieneTexto(q);
+
+        if (filtrarPais) {
+            params.addValue("pais", normalizar(pais));
+        }
+
+        if (filtrarCiudad) {
+            params.addValue("ciudad", normalizar(ciudad));
+        }
+
+        if (filtrarQ) {
+            params.addValue("q", like(q));
+        }
+
+        return jdbc.query(
+                sqlAeropuertosDestino(filtrarPais, filtrarCiudad, filtrarQ),
+                params,
+                aeropuertoDisponibleMapper()
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<ClienteVueloDisponibleResponse> listarDisponibles(
             Integer aeropuertoSalidaId,
             Integer aeropuertoLlegadaId,
             LocalDate fechaSalida
     ) {
-
-        validarFiltros(
-                aeropuertoSalidaId,
-                aeropuertoLlegadaId
-        );
+        validarFiltros(aeropuertoSalidaId, aeropuertoLlegadaId);
 
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("aeropuertoSalidaId", aeropuertoSalidaId)
@@ -57,11 +165,7 @@ public class ClienteVueloDisponibleServiceImpl implements ClienteVueloDisponible
         );
 
         for (ClienteVueloDisponibleResponse vuelo : vuelos) {
-            vuelo.setSegmentos(
-                    buscarSegmentos(
-                            vuelo.getVueloOperadoId()
-                    )
-            );
+            vuelo.setSegmentos(buscarSegmentos(vuelo.getVueloOperadoId()));
         }
 
         return vuelos;
@@ -69,10 +173,7 @@ public class ClienteVueloDisponibleServiceImpl implements ClienteVueloDisponible
 
     @Override
     @Transactional(readOnly = true)
-    public ClienteVueloDisponibleResponse obtenerDetalle(
-            Integer vueloOperadoId
-    ) {
-
+    public ClienteVueloDisponibleResponse obtenerDetalle(Integer vueloOperadoId) {
         if (vueloOperadoId == null) {
             throw new BusinessException("Debe ingresar el vuelo operado");
         }
@@ -91,31 +192,21 @@ public class ClienteVueloDisponibleServiceImpl implements ClienteVueloDisponible
         }
 
         ClienteVueloDisponibleResponse vuelo = vuelos.get(0);
-
-        vuelo.setSegmentos(
-                buscarSegmentos(
-                        vuelo.getVueloOperadoId()
-                )
-        );
+        vuelo.setSegmentos(buscarSegmentos(vuelo.getVueloOperadoId()));
 
         return vuelo;
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<ClienteDestinoAutorizadoResponse> listarDestinosAutorizados(
-            Integer aeropuertoSalidaId
-    ) {
-
-        if (aeropuertoSalidaId == null) {
-            throw new BusinessException("Debe seleccionar aeropuerto de salida");
-        }
+    public List<ClienteDestinoAutorizadoResponse> listarDestinosAutorizados(Integer aeropuertoSalidaId) {
+        validarAeropuertoSalida(aeropuertoSalidaId);
 
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("aeropuertoSalidaId", aeropuertoSalidaId);
 
         return jdbc.query(
-                sqlDestinosAutorizadosPorOrigen(),
+                sqlDestinosAutorizadosConVuelos(),
                 params,
                 destinoAutorizadoMapper()
         );
@@ -127,18 +218,14 @@ public class ClienteVueloDisponibleServiceImpl implements ClienteVueloDisponible
             Integer aeropuertoSalidaId,
             Integer aeropuertoLlegadaId
     ) {
-
-        validarFiltros(
-                aeropuertoSalidaId,
-                aeropuertoLlegadaId
-        );
+        validarFiltros(aeropuertoSalidaId, aeropuertoLlegadaId);
 
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("aeropuertoSalidaId", aeropuertoSalidaId)
                 .addValue("aeropuertoLlegadaId", aeropuertoLlegadaId);
 
         return jdbc.query(
-                sqlFechasDisponibles(),
+                sqlFechasDisponibles(false),
                 params,
                 fechaDisponibleMapper()
         );
@@ -151,14 +238,10 @@ public class ClienteVueloDisponibleServiceImpl implements ClienteVueloDisponible
             Integer aeropuertoLlegadaId,
             LocalDate fechaSalida
     ) {
-
-        validarFiltros(
-                aeropuertoSalidaId,
-                aeropuertoLlegadaId
-        );
+        validarFiltros(aeropuertoSalidaId, aeropuertoLlegadaId);
 
         if (fechaSalida == null) {
-            throw new BusinessException("Debe seleccionar fecha de salida para buscar regreso");
+            throw new BusinessException("Debe ingresar fecha de salida");
         }
 
         MapSqlParameterSource params = new MapSqlParameterSource()
@@ -167,724 +250,813 @@ public class ClienteVueloDisponibleServiceImpl implements ClienteVueloDisponible
                 .addValue("fechaSalida", fechaSalida);
 
         return jdbc.query(
-                sqlFechasRegresoDisponibles(),
+                sqlFechasDisponibles(true),
                 params,
                 fechaDisponibleMapper()
         );
     }
 
-    private void validarFiltros(
-            Integer aeropuertoSalidaId,
-            Integer aeropuertoLlegadaId
-    ) {
-
-        if (aeropuertoSalidaId == null) {
-            throw new BusinessException("Debe seleccionar aeropuerto de salida");
-        }
-
-        if (aeropuertoLlegadaId == null) {
-            throw new BusinessException("Debe seleccionar aeropuerto de llegada");
-        }
-
-        if (aeropuertoSalidaId.equals(aeropuertoLlegadaId)) {
-            throw new BusinessException("No se puede seleccionar el mismo aeropuerto de salida y llegada");
-        }
-    }
-
-    private List<ClienteVueloSegmentoDisponibleResponse> buscarSegmentos(
-            Integer vueloOperadoId
-    ) {
-
+    private List<ClienteVueloSegmentoDisponibleResponse> buscarSegmentos(Integer vueloOperadoId) {
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("vueloOperadoId", vueloOperadoId);
 
         return jdbc.query(
-                sqlSegmentosDisponibles(),
+                sqlSegmentosVueloOperado(),
                 params,
                 segmentoMapper()
         );
     }
 
-    private String sqlVuelosDisponibles(
-            boolean filtrarPorFecha
-    ) {
+    private void validarAeropuertoSalida(Integer aeropuertoSalidaId) {
+        if (aeropuertoSalidaId == null) {
+            throw new BusinessException("Debe seleccionar aeropuerto de salida");
+        }
+    }
 
-        String filtroFecha;
-
-        if (filtrarPorFecha) {
-            filtroFecha = """
-                      AND vp.fecha_salida = :fechaSalida
-                    """;
-        } else {
-            filtroFecha = """
-                      AND (
-                            vp.fecha_salida > CURRENT_DATE
-                            OR (
-                                vp.fecha_salida = CURRENT_DATE
-                                AND vp.hora_salida >= LOCALTIME
-                            )
-                      )
-                    """;
+    private void validarFiltros(Integer aeropuertoSalidaId, Integer aeropuertoLlegadaId) {
+        if (aeropuertoSalidaId == null || aeropuertoLlegadaId == null) {
+            throw new BusinessException("Debe ingresar los campos obligatorios");
         }
 
-        return """
-                SELECT
-                    vo.id AS vuelo_operado_id,
-                    vp.id AS vuelo_programado_id,
-                    v.id AS vuelo_id,
-                    v.codigo_vuelo AS codigo_vuelo,
+        if (aeropuertoSalidaId.equals(aeropuertoLlegadaId)) {
+            throw new BusinessException("No se puede seleccionar el mismo aeropuerto de salida y llegada.");
+        }
+    }
 
-                    a.id AS aerolinea_id,
-                    a.nombre AS aerolinea_nombre,
+    private String sqlOrigenes(boolean filtrar) {
+        String sql =
+                "SELECT " +
+                        "ap.pais AS pais, " +
+                        "ap.ciudad AS ciudad, " +
+                        "COUNT(DISTINCT ap.id) AS total_aeropuertos, " +
+                        "COUNT(DISTINCT vo.id) AS total_vuelos " +
+                        "FROM vuelo_operado vo " +
+                        "JOIN vuelo_programado vp ON vp.id = vo.vuelo_programado_id " +
+                        "JOIN vuelo v ON v.id = vp.vuelo_id " +
+                        "JOIN aeropuerto ap ON ap.id = vp.aeropuerto_salida_id " +
+                        "JOIN estado_vuelo ev ON ev.id = vo.estado_vuelo_id " +
+                        "JOIN status_catalog sc_v ON sc_v.id = v.estado_id " +
+                        "JOIN status_catalog sc_ap ON sc_ap.id = ap.estado_id " +
+                        "WHERE UPPER(sc_v.name) = 'ACTIVO' " +
+                        "AND UPPER(sc_ap.name) = 'ACTIVO' " +
+                        "AND UPPER(ev.nombre) IN ('PROGRAMADO', 'ATRASADO') " +
+                        "AND vp.fecha_salida >= CURRENT_DATE " +
+                        "AND EXISTS ( " +
+                        "    SELECT 1 " +
+                        "    FROM segmento_operado so " +
+                        "    JOIN asiento_vuelo avu ON avu.segmento_operado_id = so.id " +
+                        "    JOIN estado_asiento ea ON ea.id = avu.estado_asiento_id " +
+                        "    WHERE so.vuelo_operado_id = vo.id " +
+                        "    AND UPPER(ea.nombre) = 'DISPONIBLE' " +
+                        ") ";
 
-                    aps.id AS aeropuerto_salida_id,
-                    aps.nombre AS aeropuerto_salida_nombre,
-                    aps.codigo_iata AS aeropuerto_salida_codigo_iata,
+        if (filtrar) {
+            sql += filtroUbicacion("ap");
+        }
 
-                    apl.id AS aeropuerto_llegada_id,
-                    apl.nombre AS aeropuerto_llegada_nombre,
-                    apl.codigo_iata AS aeropuerto_llegada_codigo_iata,
+        sql +=
+                "GROUP BY ap.pais, ap.ciudad " +
+                        "ORDER BY ap.pais, ap.ciudad " +
+                        "LIMIT 30";
 
-                    vp.puerta_embarque_salida AS puerta_embarque_salida,
-                    vp.puerta_embarque_llegada AS puerta_embarque_llegada,
+        return sql;
+    }
 
-                    vp.fecha_salida AS fecha_salida,
-                    vp.hora_salida AS hora_salida,
-                    vp.fecha_llegada AS fecha_llegada,
-                    vp.hora_llegada AS hora_llegada,
+    private String sqlAeropuertosSalida(boolean filtrarPais, boolean filtrarCiudad, boolean filtrarQ) {
+        String sql =
+                "SELECT " +
+                        "ap.id AS aeropuerto_id, " +
+                        "ap.nombre AS nombre, " +
+                        "ap.codigo_iata AS codigo_iata, " +
+                        "ap.codigo_icao AS codigo_icao, " +
+                        "ap.pais AS pais, " +
+                        "ap.ciudad AS ciudad, " +
+                        "COUNT(DISTINCT vo.id) AS total_vuelos, " +
+                        "COUNT(DISTINCT CASE WHEN ea.id IS NOT NULL THEN avu.id END) AS asientos_disponibles_total " +
+                        "FROM vuelo_operado vo " +
+                        "JOIN vuelo_programado vp ON vp.id = vo.vuelo_programado_id " +
+                        "JOIN vuelo v ON v.id = vp.vuelo_id " +
+                        "JOIN aeropuerto ap ON ap.id = vp.aeropuerto_salida_id " +
+                        "JOIN estado_vuelo ev ON ev.id = vo.estado_vuelo_id " +
+                        "JOIN status_catalog sc_v ON sc_v.id = v.estado_id " +
+                        "JOIN status_catalog sc_ap ON sc_ap.id = ap.estado_id " +
+                        "LEFT JOIN segmento_operado so ON so.vuelo_operado_id = vo.id " +
+                        "LEFT JOIN asiento_vuelo avu ON avu.segmento_operado_id = so.id " +
+                        "LEFT JOIN estado_asiento ea ON ea.id = avu.estado_asiento_id AND UPPER(ea.nombre) = 'DISPONIBLE' " +
+                        "WHERE UPPER(sc_v.name) = 'ACTIVO' " +
+                        "AND UPPER(sc_ap.name) = 'ACTIVO' " +
+                        "AND UPPER(ev.nombre) IN ('PROGRAMADO', 'ATRASADO') " +
+                        "AND vp.fecha_salida >= CURRENT_DATE ";
 
-                    CAST(
-                        EXTRACT(
-                            EPOCH FROM (
-                                (vp.fecha_llegada + vp.hora_llegada)
-                                -
-                                (vp.fecha_salida + vp.hora_salida)
-                            )
-                        ) / 60
-                        AS BIGINT
-                    ) AS duracion_minutos,
+        if (filtrarPais) {
+            sql += "AND LOWER(ap.pais) = :pais ";
+        }
 
-                    (
-                        SELECT pv.precio
-                        FROM precio_vuelo pv
-                        INNER JOIN clase_vuelo cvp ON cvp.id = pv.clase_vuelo_id
-                        WHERE pv.vuelo_programado_id = vp.id
-                          AND pv.fecha_vigencia_hasta IS NULL
-                          AND UPPER(cvp.nombre) LIKE 'ECON%'
-                        ORDER BY pv.id DESC
-                        LIMIT 1
-                    ) AS precio_economica,
+        if (filtrarCiudad) {
+            sql += "AND LOWER(ap.ciudad) = :ciudad ";
+        }
 
-                    (
-                        SELECT pv.precio
-                        FROM precio_vuelo pv
-                        INNER JOIN clase_vuelo cvp ON cvp.id = pv.clase_vuelo_id
-                        WHERE pv.vuelo_programado_id = vp.id
-                          AND pv.fecha_vigencia_hasta IS NULL
-                          AND UPPER(cvp.nombre) LIKE 'EJEC%'
-                        ORDER BY pv.id DESC
-                        LIMIT 1
-                    ) AS precio_ejecutiva,
+        if (filtrarQ) {
+            sql += filtroUbicacion("ap");
+        }
 
-                    tsv.id AS tipo_segmento_vuelo_id,
-                    tsv.nombre AS tipo_segmento_vuelo_nombre,
+        sql +=
+                "GROUP BY ap.id, ap.nombre, ap.codigo_iata, ap.codigo_icao, ap.pais, ap.ciudad " +
+                        "HAVING COUNT(DISTINCT CASE WHEN ea.id IS NOT NULL THEN avu.id END) > 0 " +
+                        "ORDER BY ap.pais, ap.ciudad, ap.nombre " +
+                        "LIMIT 30";
 
-                    CASE
-                        WHEN UPPER(tsv.nombre) = 'CAMBIO_AVION' THEN TRUE
-                        ELSE FALSE
-                    END AS requiere_nuevo_asiento,
+        return sql;
+    }
 
-                    vo.cantidad_segmentos AS cantidad_segmentos,
-                    vo.tuvo_escala AS tuvo_escala,
+    private String sqlDestinosUbicaciones(boolean filtrar) {
+        String sql =
+                "SELECT " +
+                        "ap_destino.pais AS pais, " +
+                        "ap_destino.ciudad AS ciudad, " +
+                        "COUNT(DISTINCT ap_destino.id) AS total_aeropuertos, " +
+                        "COUNT(DISTINCT vo.id) AS total_vuelos " +
+                        "FROM vuelo_operado vo " +
+                        "JOIN vuelo_programado vp ON vp.id = vo.vuelo_programado_id " +
+                        "JOIN vuelo v ON v.id = vp.vuelo_id " +
+                        "JOIN aeropuerto ap_destino ON ap_destino.id = vp.aeropuerto_llegada_id " +
+                        "JOIN estado_vuelo ev ON ev.id = vo.estado_vuelo_id " +
+                        "JOIN status_catalog sc_v ON sc_v.id = v.estado_id " +
+                        "JOIN status_catalog sc_destino ON sc_destino.id = ap_destino.estado_id " +
+                        "JOIN destino_autorizado da_origen " +
+                        "ON da_origen.aerolinea_id = v.aerolinea_id " +
+                        "AND da_origen.aeropuerto_id = vp.aeropuerto_salida_id " +
+                        "JOIN destino_autorizado da_destino " +
+                        "ON da_destino.aerolinea_id = v.aerolinea_id " +
+                        "AND da_destino.aeropuerto_id = vp.aeropuerto_llegada_id " +
+                        "JOIN status_catalog sc_da_origen ON sc_da_origen.id = da_origen.estado_id " +
+                        "JOIN status_catalog sc_da_destino ON sc_da_destino.id = da_destino.estado_id " +
+                        "WHERE vp.aeropuerto_salida_id = :aeropuertoSalidaId " +
+                        "AND vp.aeropuerto_llegada_id <> :aeropuertoSalidaId " +
+                        "AND UPPER(sc_v.name) = 'ACTIVO' " +
+                        "AND UPPER(sc_destino.name) = 'ACTIVO' " +
+                        "AND UPPER(sc_da_origen.name) = 'ACTIVO' " +
+                        "AND UPPER(sc_da_destino.name) = 'ACTIVO' " +
+                        "AND UPPER(ev.nombre) IN ('PROGRAMADO', 'ATRASADO') " +
+                        "AND vp.fecha_salida >= CURRENT_DATE " +
+                        "AND EXISTS ( " +
+                        "    SELECT 1 " +
+                        "    FROM segmento_operado so " +
+                        "    JOIN asiento_vuelo avu ON avu.segmento_operado_id = so.id " +
+                        "    JOIN estado_asiento ea ON ea.id = avu.estado_asiento_id " +
+                        "    WHERE so.vuelo_operado_id = vo.id " +
+                        "    AND UPPER(ea.nombre) = 'DISPONIBLE' " +
+                        ") ";
 
-                    COUNT(
-                        CASE
-                            WHEN UPPER(ea.nombre) = 'DISPONIBLE' THEN 1
-                        END
-                    ) AS asientos_disponibles_total,
+        if (filtrar) {
+            sql += filtroUbicacion("ap_destino");
+        }
 
-                    COUNT(
-                        CASE
-                            WHEN UPPER(ea.nombre) = 'DISPONIBLE'
-                             AND UPPER(cvas.nombre) LIKE 'ECON%'
-                            THEN 1
-                        END
-                    ) AS asientos_disponibles_economica,
+        sql +=
+                "GROUP BY ap_destino.pais, ap_destino.ciudad " +
+                        "ORDER BY ap_destino.pais, ap_destino.ciudad " +
+                        "LIMIT 30";
 
-                    COUNT(
-                        CASE
-                            WHEN UPPER(ea.nombre) = 'DISPONIBLE'
-                             AND UPPER(cvas.nombre) LIKE 'EJEC%'
-                            THEN 1
-                        END
-                    ) AS asientos_disponibles_ejecutiva
+        return sql;
+    }
 
-                FROM vuelo_operado vo
-                INNER JOIN vuelo_programado vp ON vp.id = vo.vuelo_programado_id
-                INNER JOIN vuelo v ON v.id = vp.vuelo_id
-                INNER JOIN status_catalog sc ON sc.id = v.estado_id
-                INNER JOIN aerolinea a ON a.id = v.aerolinea_id
-                INNER JOIN aeropuerto aps ON aps.id = vp.aeropuerto_salida_id
-                INNER JOIN aeropuerto apl ON apl.id = vp.aeropuerto_llegada_id
-                INNER JOIN estado_vuelo ev ON ev.id = vo.estado_vuelo_id
-                INNER JOIN tipo_segmento_vuelo tsv ON tsv.id = vo.tipo_segmento_vuelo_id
+    private String sqlAeropuertosDestino(boolean filtrarPais, boolean filtrarCiudad, boolean filtrarQ) {
+        String sql =
+                "SELECT " +
+                        "ap_destino.id AS aeropuerto_id, " +
+                        "ap_destino.nombre AS nombre, " +
+                        "ap_destino.codigo_iata AS codigo_iata, " +
+                        "ap_destino.codigo_icao AS codigo_icao, " +
+                        "ap_destino.pais AS pais, " +
+                        "ap_destino.ciudad AS ciudad, " +
+                        "COUNT(DISTINCT vo.id) AS total_vuelos, " +
+                        "COUNT(DISTINCT CASE WHEN ea.id IS NOT NULL THEN avu.id END) AS asientos_disponibles_total " +
+                        "FROM vuelo_operado vo " +
+                        "JOIN vuelo_programado vp ON vp.id = vo.vuelo_programado_id " +
+                        "JOIN vuelo v ON v.id = vp.vuelo_id " +
+                        "JOIN aeropuerto ap_destino ON ap_destino.id = vp.aeropuerto_llegada_id " +
+                        "JOIN estado_vuelo ev ON ev.id = vo.estado_vuelo_id " +
+                        "JOIN status_catalog sc_v ON sc_v.id = v.estado_id " +
+                        "JOIN status_catalog sc_destino ON sc_destino.id = ap_destino.estado_id " +
+                        "JOIN destino_autorizado da_origen " +
+                        "ON da_origen.aerolinea_id = v.aerolinea_id " +
+                        "AND da_origen.aeropuerto_id = vp.aeropuerto_salida_id " +
+                        "JOIN destino_autorizado da_destino " +
+                        "ON da_destino.aerolinea_id = v.aerolinea_id " +
+                        "AND da_destino.aeropuerto_id = vp.aeropuerto_llegada_id " +
+                        "JOIN status_catalog sc_da_origen ON sc_da_origen.id = da_origen.estado_id " +
+                        "JOIN status_catalog sc_da_destino ON sc_da_destino.id = da_destino.estado_id " +
+                        "LEFT JOIN segmento_operado so ON so.vuelo_operado_id = vo.id " +
+                        "LEFT JOIN asiento_vuelo avu ON avu.segmento_operado_id = so.id " +
+                        "LEFT JOIN estado_asiento ea ON ea.id = avu.estado_asiento_id AND UPPER(ea.nombre) = 'DISPONIBLE' " +
+                        "WHERE vp.aeropuerto_salida_id = :aeropuertoSalidaId " +
+                        "AND vp.aeropuerto_llegada_id <> :aeropuertoSalidaId " +
+                        "AND UPPER(sc_v.name) = 'ACTIVO' " +
+                        "AND UPPER(sc_destino.name) = 'ACTIVO' " +
+                        "AND UPPER(sc_da_origen.name) = 'ACTIVO' " +
+                        "AND UPPER(sc_da_destino.name) = 'ACTIVO' " +
+                        "AND UPPER(ev.nombre) IN ('PROGRAMADO', 'ATRASADO') " +
+                        "AND vp.fecha_salida >= CURRENT_DATE ";
 
-                LEFT JOIN segmento_operado so ON so.vuelo_operado_id = vo.id
-                LEFT JOIN asiento_vuelo avu ON avu.segmento_operado_id = so.id
-                LEFT JOIN estado_asiento ea ON ea.id = avu.estado_asiento_id
-                LEFT JOIN asiento_ubi au
-                       ON au.codigo_asiento_sistema = avu.codigo_asiento_sistema
-                      AND au.avion_id = so.avion_id
-                LEFT JOIN clase_vuelo cvas ON cvas.id = au.clase_vuelo_id
+        if (filtrarPais) {
+            sql += "AND LOWER(ap_destino.pais) = :pais ";
+        }
 
-                WHERE vp.aeropuerto_salida_id = :aeropuertoSalidaId
-                  AND vp.aeropuerto_llegada_id = :aeropuertoLlegadaId
-                """ + filtroFecha + """
-                  AND UPPER(sc.name) = 'ACTIVO'
-                  AND UPPER(ev.nombre) = 'PROGRAMADO'
+        if (filtrarCiudad) {
+            sql += "AND LOWER(ap_destino.ciudad) = :ciudad ";
+        }
 
-                GROUP BY
-                    vo.id,
-                    vp.id,
-                    v.id,
-                    v.codigo_vuelo,
-                    a.id,
-                    a.nombre,
-                    aps.id,
-                    aps.nombre,
-                    aps.codigo_iata,
-                    apl.id,
-                    apl.nombre,
-                    apl.codigo_iata,
-                    vp.puerta_embarque_salida,
-                    vp.puerta_embarque_llegada,
-                    vp.fecha_salida,
-                    vp.hora_salida,
-                    vp.fecha_llegada,
-                    vp.hora_llegada,
-                    tsv.id,
-                    tsv.nombre,
-                    vo.cantidad_segmentos,
-                    vo.tuvo_escala
+        if (filtrarQ) {
+            sql += filtroUbicacion("ap_destino");
+        }
 
-                HAVING COUNT(
-                    CASE
-                        WHEN UPPER(ea.nombre) = 'DISPONIBLE' THEN 1
-                    END
-                ) > 0
+        sql +=
+                "GROUP BY " +
+                        "ap_destino.id, ap_destino.nombre, ap_destino.codigo_iata, " +
+                        "ap_destino.codigo_icao, ap_destino.pais, ap_destino.ciudad " +
+                        "HAVING COUNT(DISTINCT CASE WHEN ea.id IS NOT NULL THEN avu.id END) > 0 " +
+                        "ORDER BY ap_destino.pais, ap_destino.ciudad, ap_destino.nombre " +
+                        "LIMIT 30";
 
-                ORDER BY
-                    vp.fecha_salida ASC,
-                    vp.hora_salida ASC,
-                    v.codigo_vuelo ASC
-                """;
+        return sql;
+    }
+
+    private String sqlDestinosAutorizadosConVuelos() {
+        return
+                "SELECT " +
+                        "ap_destino.id AS aeropuerto_id, " +
+                        "ap_destino.nombre AS nombre, " +
+                        "ap_destino.codigo_iata AS codigo_iata, " +
+                        "ap_destino.ciudad AS ciudad, " +
+                        "ap_destino.pais AS pais " +
+                        "FROM vuelo_operado vo " +
+                        "JOIN vuelo_programado vp ON vp.id = vo.vuelo_programado_id " +
+                        "JOIN vuelo v ON v.id = vp.vuelo_id " +
+                        "JOIN aeropuerto ap_destino ON ap_destino.id = vp.aeropuerto_llegada_id " +
+                        "JOIN estado_vuelo ev ON ev.id = vo.estado_vuelo_id " +
+                        "JOIN status_catalog sc_v ON sc_v.id = v.estado_id " +
+                        "JOIN status_catalog sc_destino ON sc_destino.id = ap_destino.estado_id " +
+                        "JOIN destino_autorizado da_origen " +
+                        "ON da_origen.aerolinea_id = v.aerolinea_id " +
+                        "AND da_origen.aeropuerto_id = vp.aeropuerto_salida_id " +
+                        "JOIN destino_autorizado da_destino " +
+                        "ON da_destino.aerolinea_id = v.aerolinea_id " +
+                        "AND da_destino.aeropuerto_id = vp.aeropuerto_llegada_id " +
+                        "JOIN status_catalog sc_da_origen ON sc_da_origen.id = da_origen.estado_id " +
+                        "JOIN status_catalog sc_da_destino ON sc_da_destino.id = da_destino.estado_id " +
+                        "WHERE vp.aeropuerto_salida_id = :aeropuertoSalidaId " +
+                        "AND vp.aeropuerto_llegada_id <> :aeropuertoSalidaId " +
+                        "AND UPPER(sc_v.name) = 'ACTIVO' " +
+                        "AND UPPER(sc_destino.name) = 'ACTIVO' " +
+                        "AND UPPER(sc_da_origen.name) = 'ACTIVO' " +
+                        "AND UPPER(sc_da_destino.name) = 'ACTIVO' " +
+                        "AND UPPER(ev.nombre) IN ('PROGRAMADO', 'ATRASADO') " +
+                        "AND vp.fecha_salida >= CURRENT_DATE " +
+                        "AND EXISTS ( " +
+                        "    SELECT 1 " +
+                        "    FROM segmento_operado so " +
+                        "    JOIN asiento_vuelo avu ON avu.segmento_operado_id = so.id " +
+                        "    JOIN estado_asiento ea ON ea.id = avu.estado_asiento_id " +
+                        "    WHERE so.vuelo_operado_id = vo.id " +
+                        "    AND UPPER(ea.nombre) = 'DISPONIBLE' " +
+                        ") " +
+                        "GROUP BY ap_destino.id, ap_destino.nombre, ap_destino.codigo_iata, ap_destino.ciudad, ap_destino.pais " +
+                        "ORDER BY ap_destino.pais, ap_destino.ciudad, ap_destino.nombre";
+    }
+
+    private String sqlVuelosDisponibles(boolean filtrarPorFecha) {
+        String sql =
+                "SELECT " +
+                        "vo.id AS vuelo_operado_id, " +
+                        "vp.id AS vuelo_programado_id, " +
+                        "v.id AS vuelo_id, " +
+                        "v.codigo_vuelo AS codigo_vuelo, " +
+                        "al.id AS aerolinea_id, " +
+                        "al.nombre AS aerolinea_nombre, " +
+
+                        "ap_salida.id AS aeropuerto_salida_id, " +
+                        "ap_salida.nombre AS aeropuerto_salida_nombre, " +
+                        "ap_salida.codigo_iata AS aeropuerto_salida_codigo_iata, " +
+
+                        "ap_llegada.id AS aeropuerto_llegada_id, " +
+                        "ap_llegada.nombre AS aeropuerto_llegada_nombre, " +
+                        "ap_llegada.codigo_iata AS aeropuerto_llegada_codigo_iata, " +
+
+                        "vp.puerta_embarque_salida AS puerta_embarque_salida, " +
+                        "vp.puerta_embarque_llegada AS puerta_embarque_llegada, " +
+
+                        "vp.fecha_salida AS fecha_salida, " +
+                        "vp.hora_salida AS hora_salida, " +
+                        "vp.fecha_llegada AS fecha_llegada, " +
+                        "vp.hora_llegada AS hora_llegada, " +
+
+                        "CAST(EXTRACT(EPOCH FROM ((vp.fecha_llegada + vp.hora_llegada) - (vp.fecha_salida + vp.hora_salida))) / 60 AS BIGINT) AS duracion_minutos, " +
+
+                        "COALESCE(precio_economica.precio, 0) AS precio_economica, " +
+                        "COALESCE(precio_ejecutiva.precio, 0) AS precio_ejecutiva, " +
+
+                        "tsv.id AS tipo_segmento_vuelo_id, " +
+                        "tsv.nombre AS tipo_segmento_vuelo_nombre, " +
+                        "tsv.requiere_nuevo_asiento AS requiere_nuevo_asiento, " +
+
+                        "vo.cantidad_segmentos AS cantidad_segmentos, " +
+                        "vo.tuvo_escala AS tuvo_escala, " +
+
+                        "COALESCE(asientos.total, 0) AS asientos_disponibles_total, " +
+                        "COALESCE(asientos.economica, 0) AS asientos_disponibles_economica, " +
+                        "COALESCE(asientos.ejecutiva, 0) AS asientos_disponibles_ejecutiva " +
+
+                        "FROM vuelo_operado vo " +
+                        "JOIN vuelo_programado vp ON vp.id = vo.vuelo_programado_id " +
+                        "JOIN vuelo v ON v.id = vp.vuelo_id " +
+                        "JOIN aerolinea al ON al.id = v.aerolinea_id " +
+                        "JOIN aeropuerto ap_salida ON ap_salida.id = vp.aeropuerto_salida_id " +
+                        "JOIN aeropuerto ap_llegada ON ap_llegada.id = vp.aeropuerto_llegada_id " +
+                        "JOIN tipo_segmento_vuelo tsv ON tsv.id = vo.tipo_segmento_vuelo_id " +
+                        "JOIN estado_vuelo ev ON ev.id = vo.estado_vuelo_id " +
+                        "JOIN status_catalog sc_v ON sc_v.id = v.estado_id " +
+                        "JOIN status_catalog sc_salida ON sc_salida.id = ap_salida.estado_id " +
+                        "JOIN status_catalog sc_llegada ON sc_llegada.id = ap_llegada.estado_id " +
+                        "JOIN destino_autorizado da_origen ON da_origen.aerolinea_id = v.aerolinea_id AND da_origen.aeropuerto_id = vp.aeropuerto_salida_id " +
+                        "JOIN destino_autorizado da_destino ON da_destino.aerolinea_id = v.aerolinea_id AND da_destino.aeropuerto_id = vp.aeropuerto_llegada_id " +
+                        "JOIN status_catalog sc_da_origen ON sc_da_origen.id = da_origen.estado_id " +
+                        "JOIN status_catalog sc_da_destino ON sc_da_destino.id = da_destino.estado_id " +
+
+                        "LEFT JOIN LATERAL ( " +
+                        "    SELECT pv.precio " +
+                        "    FROM precio_vuelo pv " +
+                        "    JOIN clase_vuelo cv ON cv.id = pv.clase_vuelo_id " +
+                        "    WHERE pv.vuelo_programado_id = vp.id " +
+                        "    AND UPPER(cv.nombre) = 'ECONOMICA' " +
+                        "    AND (pv.fecha_vigencia_desde IS NULL OR pv.fecha_vigencia_desde <= CURRENT_DATE) " +
+                        "    AND (pv.fecha_vigencia_hasta IS NULL OR pv.fecha_vigencia_hasta >= CURRENT_DATE) " +
+                        "    ORDER BY pv.fecha_vigencia_desde DESC NULLS LAST, pv.id DESC " +
+                        "    LIMIT 1 " +
+                        ") precio_economica ON TRUE " +
+
+                        "LEFT JOIN LATERAL ( " +
+                        "    SELECT pv.precio " +
+                        "    FROM precio_vuelo pv " +
+                        "    JOIN clase_vuelo cv ON cv.id = pv.clase_vuelo_id " +
+                        "    WHERE pv.vuelo_programado_id = vp.id " +
+                        "    AND UPPER(cv.nombre) = 'EJECUTIVA' " +
+                        "    AND (pv.fecha_vigencia_desde IS NULL OR pv.fecha_vigencia_desde <= CURRENT_DATE) " +
+                        "    AND (pv.fecha_vigencia_hasta IS NULL OR pv.fecha_vigencia_hasta >= CURRENT_DATE) " +
+                        "    ORDER BY pv.fecha_vigencia_desde DESC NULLS LAST, pv.id DESC " +
+                        "    LIMIT 1 " +
+                        ") precio_ejecutiva ON TRUE " +
+
+                        "LEFT JOIN LATERAL ( " +
+                        "    SELECT " +
+                        "    COUNT(*) AS total, " +
+                        "    COUNT(*) FILTER (WHERE UPPER(cv.nombre) = 'ECONOMICA') AS economica, " +
+                        "    COUNT(*) FILTER (WHERE UPPER(cv.nombre) = 'EJECUTIVA') AS ejecutiva " +
+                        "    FROM segmento_operado so " +
+                        "    JOIN asiento_vuelo avu ON avu.segmento_operado_id = so.id " +
+                        "    JOIN estado_asiento ea ON ea.id = avu.estado_asiento_id " +
+                        "    LEFT JOIN asiento_ubi au ON au.codigo_asiento_sistema = avu.codigo_asiento_sistema " +
+                        "    LEFT JOIN clase_vuelo cv ON cv.id = au.clase_vuelo_id " +
+                        "    WHERE so.vuelo_operado_id = vo.id " +
+                        "    AND UPPER(ea.nombre) = 'DISPONIBLE' " +
+                        ") asientos ON TRUE " +
+
+                        "WHERE vp.aeropuerto_salida_id = :aeropuertoSalidaId " +
+                        "AND vp.aeropuerto_llegada_id = :aeropuertoLlegadaId " +
+                        "AND vp.aeropuerto_salida_id <> vp.aeropuerto_llegada_id " +
+                        "AND UPPER(sc_v.name) = 'ACTIVO' " +
+                        "AND UPPER(sc_salida.name) = 'ACTIVO' " +
+                        "AND UPPER(sc_llegada.name) = 'ACTIVO' " +
+                        "AND UPPER(sc_da_origen.name) = 'ACTIVO' " +
+                        "AND UPPER(sc_da_destino.name) = 'ACTIVO' " +
+                        "AND UPPER(ev.nombre) IN ('PROGRAMADO', 'ATRASADO') " +
+                        "AND vp.fecha_salida >= CURRENT_DATE " +
+                        "AND COALESCE(asientos.total, 0) > 0 ";
+
+        if (filtrarPorFecha) {
+            sql += "AND vp.fecha_salida = :fechaSalida ";
+        }
+
+        sql += "ORDER BY vp.fecha_salida, vp.hora_salida, v.codigo_vuelo";
+
+        return sql;
     }
 
     private String sqlDetalleVueloDisponible() {
-        return """
-                SELECT
-                    vo.id AS vuelo_operado_id,
-                    vp.id AS vuelo_programado_id,
-                    v.id AS vuelo_id,
-                    v.codigo_vuelo AS codigo_vuelo,
+        return
+                "SELECT " +
+                        "vo.id AS vuelo_operado_id, " +
+                        "vp.id AS vuelo_programado_id, " +
+                        "v.id AS vuelo_id, " +
+                        "v.codigo_vuelo AS codigo_vuelo, " +
+                        "al.id AS aerolinea_id, " +
+                        "al.nombre AS aerolinea_nombre, " +
 
-                    a.id AS aerolinea_id,
-                    a.nombre AS aerolinea_nombre,
+                        "ap_salida.id AS aeropuerto_salida_id, " +
+                        "ap_salida.nombre AS aeropuerto_salida_nombre, " +
+                        "ap_salida.codigo_iata AS aeropuerto_salida_codigo_iata, " +
 
-                    aps.id AS aeropuerto_salida_id,
-                    aps.nombre AS aeropuerto_salida_nombre,
-                    aps.codigo_iata AS aeropuerto_salida_codigo_iata,
+                        "ap_llegada.id AS aeropuerto_llegada_id, " +
+                        "ap_llegada.nombre AS aeropuerto_llegada_nombre, " +
+                        "ap_llegada.codigo_iata AS aeropuerto_llegada_codigo_iata, " +
 
-                    apl.id AS aeropuerto_llegada_id,
-                    apl.nombre AS aeropuerto_llegada_nombre,
-                    apl.codigo_iata AS aeropuerto_llegada_codigo_iata,
+                        "vp.puerta_embarque_salida AS puerta_embarque_salida, " +
+                        "vp.puerta_embarque_llegada AS puerta_embarque_llegada, " +
 
-                    vp.puerta_embarque_salida AS puerta_embarque_salida,
-                    vp.puerta_embarque_llegada AS puerta_embarque_llegada,
+                        "vp.fecha_salida AS fecha_salida, " +
+                        "vp.hora_salida AS hora_salida, " +
+                        "vp.fecha_llegada AS fecha_llegada, " +
+                        "vp.hora_llegada AS hora_llegada, " +
 
-                    vp.fecha_salida AS fecha_salida,
-                    vp.hora_salida AS hora_salida,
-                    vp.fecha_llegada AS fecha_llegada,
-                    vp.hora_llegada AS hora_llegada,
+                        "CAST(EXTRACT(EPOCH FROM ((vp.fecha_llegada + vp.hora_llegada) - (vp.fecha_salida + vp.hora_salida))) / 60 AS BIGINT) AS duracion_minutos, " +
 
-                    CAST(
-                        EXTRACT(
-                            EPOCH FROM (
-                                (vp.fecha_llegada + vp.hora_llegada)
-                                -
-                                (vp.fecha_salida + vp.hora_salida)
-                            )
-                        ) / 60
-                        AS BIGINT
-                    ) AS duracion_minutos,
+                        "COALESCE(precio_economica.precio, 0) AS precio_economica, " +
+                        "COALESCE(precio_ejecutiva.precio, 0) AS precio_ejecutiva, " +
 
-                    (
-                        SELECT pv.precio
-                        FROM precio_vuelo pv
-                        INNER JOIN clase_vuelo cvp ON cvp.id = pv.clase_vuelo_id
-                        WHERE pv.vuelo_programado_id = vp.id
-                          AND pv.fecha_vigencia_hasta IS NULL
-                          AND UPPER(cvp.nombre) LIKE 'ECON%'
-                        ORDER BY pv.id DESC
-                        LIMIT 1
-                    ) AS precio_economica,
+                        "tsv.id AS tipo_segmento_vuelo_id, " +
+                        "tsv.nombre AS tipo_segmento_vuelo_nombre, " +
+                        "tsv.requiere_nuevo_asiento AS requiere_nuevo_asiento, " +
 
-                    (
-                        SELECT pv.precio
-                        FROM precio_vuelo pv
-                        INNER JOIN clase_vuelo cvp ON cvp.id = pv.clase_vuelo_id
-                        WHERE pv.vuelo_programado_id = vp.id
-                          AND pv.fecha_vigencia_hasta IS NULL
-                          AND UPPER(cvp.nombre) LIKE 'EJEC%'
-                        ORDER BY pv.id DESC
-                        LIMIT 1
-                    ) AS precio_ejecutiva,
+                        "vo.cantidad_segmentos AS cantidad_segmentos, " +
+                        "vo.tuvo_escala AS tuvo_escala, " +
 
-                    tsv.id AS tipo_segmento_vuelo_id,
-                    tsv.nombre AS tipo_segmento_vuelo_nombre,
+                        "COALESCE(asientos.total, 0) AS asientos_disponibles_total, " +
+                        "COALESCE(asientos.economica, 0) AS asientos_disponibles_economica, " +
+                        "COALESCE(asientos.ejecutiva, 0) AS asientos_disponibles_ejecutiva " +
 
-                    CASE
-                        WHEN UPPER(tsv.nombre) = 'CAMBIO_AVION' THEN TRUE
-                        ELSE FALSE
-                    END AS requiere_nuevo_asiento,
+                        "FROM vuelo_operado vo " +
+                        "JOIN vuelo_programado vp ON vp.id = vo.vuelo_programado_id " +
+                        "JOIN vuelo v ON v.id = vp.vuelo_id " +
+                        "JOIN aerolinea al ON al.id = v.aerolinea_id " +
+                        "JOIN aeropuerto ap_salida ON ap_salida.id = vp.aeropuerto_salida_id " +
+                        "JOIN aeropuerto ap_llegada ON ap_llegada.id = vp.aeropuerto_llegada_id " +
+                        "JOIN tipo_segmento_vuelo tsv ON tsv.id = vo.tipo_segmento_vuelo_id " +
+                        "JOIN estado_vuelo ev ON ev.id = vo.estado_vuelo_id " +
+                        "JOIN status_catalog sc_v ON sc_v.id = v.estado_id " +
+                        "JOIN status_catalog sc_salida ON sc_salida.id = ap_salida.estado_id " +
+                        "JOIN status_catalog sc_llegada ON sc_llegada.id = ap_llegada.estado_id " +
 
-                    vo.cantidad_segmentos AS cantidad_segmentos,
-                    vo.tuvo_escala AS tuvo_escala,
+                        "LEFT JOIN LATERAL ( " +
+                        "    SELECT pv.precio " +
+                        "    FROM precio_vuelo pv " +
+                        "    JOIN clase_vuelo cv ON cv.id = pv.clase_vuelo_id " +
+                        "    WHERE pv.vuelo_programado_id = vp.id " +
+                        "    AND UPPER(cv.nombre) = 'ECONOMICA' " +
+                        "    AND (pv.fecha_vigencia_desde IS NULL OR pv.fecha_vigencia_desde <= CURRENT_DATE) " +
+                        "    AND (pv.fecha_vigencia_hasta IS NULL OR pv.fecha_vigencia_hasta >= CURRENT_DATE) " +
+                        "    ORDER BY pv.fecha_vigencia_desde DESC NULLS LAST, pv.id DESC " +
+                        "    LIMIT 1 " +
+                        ") precio_economica ON TRUE " +
 
-                    COUNT(
-                        CASE
-                            WHEN UPPER(ea.nombre) = 'DISPONIBLE' THEN 1
-                        END
-                    ) AS asientos_disponibles_total,
+                        "LEFT JOIN LATERAL ( " +
+                        "    SELECT pv.precio " +
+                        "    FROM precio_vuelo pv " +
+                        "    JOIN clase_vuelo cv ON cv.id = pv.clase_vuelo_id " +
+                        "    WHERE pv.vuelo_programado_id = vp.id " +
+                        "    AND UPPER(cv.nombre) = 'EJECUTIVA' " +
+                        "    AND (pv.fecha_vigencia_desde IS NULL OR pv.fecha_vigencia_desde <= CURRENT_DATE) " +
+                        "    AND (pv.fecha_vigencia_hasta IS NULL OR pv.fecha_vigencia_hasta >= CURRENT_DATE) " +
+                        "    ORDER BY pv.fecha_vigencia_desde DESC NULLS LAST, pv.id DESC " +
+                        "    LIMIT 1 " +
+                        ") precio_ejecutiva ON TRUE " +
 
-                    COUNT(
-                        CASE
-                            WHEN UPPER(ea.nombre) = 'DISPONIBLE'
-                             AND UPPER(cvas.nombre) LIKE 'ECON%'
-                            THEN 1
-                        END
-                    ) AS asientos_disponibles_economica,
+                        "LEFT JOIN LATERAL ( " +
+                        "    SELECT " +
+                        "    COUNT(*) AS total, " +
+                        "    COUNT(*) FILTER (WHERE UPPER(cv.nombre) = 'ECONOMICA') AS economica, " +
+                        "    COUNT(*) FILTER (WHERE UPPER(cv.nombre) = 'EJECUTIVA') AS ejecutiva " +
+                        "    FROM segmento_operado so " +
+                        "    JOIN asiento_vuelo avu ON avu.segmento_operado_id = so.id " +
+                        "    JOIN estado_asiento ea ON ea.id = avu.estado_asiento_id " +
+                        "    LEFT JOIN asiento_ubi au ON au.codigo_asiento_sistema = avu.codigo_asiento_sistema " +
+                        "    LEFT JOIN clase_vuelo cv ON cv.id = au.clase_vuelo_id " +
+                        "    WHERE so.vuelo_operado_id = vo.id " +
+                        "    AND UPPER(ea.nombre) = 'DISPONIBLE' " +
+                        ") asientos ON TRUE " +
 
-                    COUNT(
-                        CASE
-                            WHEN UPPER(ea.nombre) = 'DISPONIBLE'
-                             AND UPPER(cvas.nombre) LIKE 'EJEC%'
-                            THEN 1
-                        END
-                    ) AS asientos_disponibles_ejecutiva
-
-                FROM vuelo_operado vo
-                INNER JOIN vuelo_programado vp ON vp.id = vo.vuelo_programado_id
-                INNER JOIN vuelo v ON v.id = vp.vuelo_id
-                INNER JOIN status_catalog sc ON sc.id = v.estado_id
-                INNER JOIN aerolinea a ON a.id = v.aerolinea_id
-                INNER JOIN aeropuerto aps ON aps.id = vp.aeropuerto_salida_id
-                INNER JOIN aeropuerto apl ON apl.id = vp.aeropuerto_llegada_id
-                INNER JOIN estado_vuelo ev ON ev.id = vo.estado_vuelo_id
-                INNER JOIN tipo_segmento_vuelo tsv ON tsv.id = vo.tipo_segmento_vuelo_id
-
-                LEFT JOIN segmento_operado so ON so.vuelo_operado_id = vo.id
-                LEFT JOIN asiento_vuelo avu ON avu.segmento_operado_id = so.id
-                LEFT JOIN estado_asiento ea ON ea.id = avu.estado_asiento_id
-                LEFT JOIN asiento_ubi au
-                       ON au.codigo_asiento_sistema = avu.codigo_asiento_sistema
-                      AND au.avion_id = so.avion_id
-                LEFT JOIN clase_vuelo cvas ON cvas.id = au.clase_vuelo_id
-
-                WHERE vo.id = :vueloOperadoId
-                  AND UPPER(sc.name) = 'ACTIVO'
-                  AND UPPER(ev.nombre) = 'PROGRAMADO'
-
-                GROUP BY
-                    vo.id,
-                    vp.id,
-                    v.id,
-                    v.codigo_vuelo,
-                    a.id,
-                    a.nombre,
-                    aps.id,
-                    aps.nombre,
-                    aps.codigo_iata,
-                    apl.id,
-                    apl.nombre,
-                    apl.codigo_iata,
-                    vp.puerta_embarque_salida,
-                    vp.puerta_embarque_llegada,
-                    vp.fecha_salida,
-                    vp.hora_salida,
-                    vp.fecha_llegada,
-                    vp.hora_llegada,
-                    tsv.id,
-                    tsv.nombre,
-                    vo.cantidad_segmentos,
-                    vo.tuvo_escala
-
-                HAVING COUNT(
-                    CASE
-                        WHEN UPPER(ea.nombre) = 'DISPONIBLE' THEN 1
-                    END
-                ) > 0
-
-                ORDER BY
-                    vp.fecha_salida ASC,
-                    vp.hora_salida ASC,
-                    v.codigo_vuelo ASC
-                """;
+                        "WHERE vo.id = :vueloOperadoId " +
+                        "AND UPPER(sc_v.name) = 'ACTIVO' " +
+                        "AND UPPER(sc_salida.name) = 'ACTIVO' " +
+                        "AND UPPER(sc_llegada.name) = 'ACTIVO' " +
+                        "AND UPPER(ev.nombre) IN ('PROGRAMADO', 'ATRASADO')";
     }
 
-    private String sqlSegmentosDisponibles() {
-        return """
-                SELECT
-                    so.id AS segmento_operado_id,
-                    sv.id AS segmento_vuelo_id,
-                    sv.orden_segmento AS orden_segmento,
+    private String sqlFechasDisponibles(boolean regreso) {
+        String sql =
+                "SELECT " +
+                        "vp.fecha_salida AS fecha_salida, " +
+                        "COUNT(DISTINCT vo.id) AS vuelos_disponibles, " +
+                        "MIN(COALESCE(precio_min.precio, 0)) AS precio_minimo " +
+                        "FROM vuelo_operado vo " +
+                        "JOIN vuelo_programado vp ON vp.id = vo.vuelo_programado_id " +
+                        "JOIN vuelo v ON v.id = vp.vuelo_id " +
+                        "JOIN estado_vuelo ev ON ev.id = vo.estado_vuelo_id " +
+                        "JOIN status_catalog sc_v ON sc_v.id = v.estado_id " +
+                        "JOIN destino_autorizado da_origen ON da_origen.aerolinea_id = v.aerolinea_id AND da_origen.aeropuerto_id = vp.aeropuerto_salida_id " +
+                        "JOIN destino_autorizado da_destino ON da_destino.aerolinea_id = v.aerolinea_id AND da_destino.aeropuerto_id = vp.aeropuerto_llegada_id " +
+                        "JOIN status_catalog sc_da_origen ON sc_da_origen.id = da_origen.estado_id " +
+                        "JOIN status_catalog sc_da_destino ON sc_da_destino.id = da_destino.estado_id " +
+                        "LEFT JOIN LATERAL ( " +
+                        "    SELECT MIN(pv.precio) AS precio " +
+                        "    FROM precio_vuelo pv " +
+                        "    WHERE pv.vuelo_programado_id = vp.id " +
+                        "    AND (pv.fecha_vigencia_desde IS NULL OR pv.fecha_vigencia_desde <= CURRENT_DATE) " +
+                        "    AND (pv.fecha_vigencia_hasta IS NULL OR pv.fecha_vigencia_hasta >= CURRENT_DATE) " +
+                        ") precio_min ON TRUE " +
+                        "WHERE vp.aeropuerto_salida_id = :aeropuertoSalidaId " +
+                        "AND vp.aeropuerto_llegada_id = :aeropuertoLlegadaId " +
+                        "AND vp.aeropuerto_salida_id <> vp.aeropuerto_llegada_id " +
+                        "AND UPPER(sc_v.name) = 'ACTIVO' " +
+                        "AND UPPER(sc_da_origen.name) = 'ACTIVO' " +
+                        "AND UPPER(sc_da_destino.name) = 'ACTIVO' " +
+                        "AND UPPER(ev.nombre) IN ('PROGRAMADO', 'ATRASADO') " +
+                        "AND vp.fecha_salida >= CURRENT_DATE " +
+                        "AND EXISTS ( " +
+                        "    SELECT 1 " +
+                        "    FROM segmento_operado so " +
+                        "    JOIN asiento_vuelo avu ON avu.segmento_operado_id = so.id " +
+                        "    JOIN estado_asiento ea ON ea.id = avu.estado_asiento_id " +
+                        "    WHERE so.vuelo_operado_id = vo.id " +
+                        "    AND UPPER(ea.nombre) = 'DISPONIBLE' " +
+                        ") ";
 
-                    aps.id AS aeropuerto_salida_id,
-                    aps.nombre AS aeropuerto_salida_nombre,
-                    aps.codigo_iata AS aeropuerto_salida_codigo_iata,
+        if (regreso) {
+            sql += "AND vp.fecha_salida >= :fechaSalida ";
+        }
 
-                    apl.id AS aeropuerto_llegada_id,
-                    apl.nombre AS aeropuerto_llegada_nombre,
-                    apl.codigo_iata AS aeropuerto_llegada_codigo_iata,
+        sql +=
+                "GROUP BY vp.fecha_salida " +
+                        "ORDER BY vp.fecha_salida";
 
-                    sv.fecha_salida AS fecha_salida,
-                    sv.hora_salida AS hora_salida,
-                    sv.fecha_llegada AS fecha_llegada,
-                    sv.hora_llegada AS hora_llegada,
-
-                    av.id AS avion_id,
-                    av.codigo_avion AS codigo_avion,
-
-                    COUNT(
-                        CASE
-                            WHEN UPPER(ea.nombre) = 'DISPONIBLE' THEN 1
-                        END
-                    ) AS asientos_disponibles_total,
-
-                    COUNT(
-                        CASE
-                            WHEN UPPER(ea.nombre) = 'DISPONIBLE'
-                             AND UPPER(cv.nombre) LIKE 'ECON%'
-                            THEN 1
-                        END
-                    ) AS asientos_disponibles_economica,
-
-                    COUNT(
-                        CASE
-                            WHEN UPPER(ea.nombre) = 'DISPONIBLE'
-                             AND UPPER(cv.nombre) LIKE 'EJEC%'
-                            THEN 1
-                        END
-                    ) AS asientos_disponibles_ejecutiva
-
-                FROM segmento_operado so
-                INNER JOIN segmento_vuelo sv ON sv.id = so.segmento_vuelo_id
-                INNER JOIN aeropuerto aps ON aps.id = sv.aeropuerto_salida_id
-                INNER JOIN aeropuerto apl ON apl.id = sv.aeropuerto_llegada_id
-                INNER JOIN avion av ON av.id = so.avion_id
-
-                LEFT JOIN asiento_vuelo avu ON avu.segmento_operado_id = so.id
-                LEFT JOIN estado_asiento ea ON ea.id = avu.estado_asiento_id
-                LEFT JOIN asiento_ubi au
-                       ON au.codigo_asiento_sistema = avu.codigo_asiento_sistema
-                      AND au.avion_id = so.avion_id
-                LEFT JOIN clase_vuelo cv ON cv.id = au.clase_vuelo_id
-
-                WHERE so.vuelo_operado_id = :vueloOperadoId
-
-                GROUP BY
-                    so.id,
-                    sv.id,
-                    sv.orden_segmento,
-                    aps.id,
-                    aps.nombre,
-                    aps.codigo_iata,
-                    apl.id,
-                    apl.nombre,
-                    apl.codigo_iata,
-                    sv.fecha_salida,
-                    sv.hora_salida,
-                    sv.fecha_llegada,
-                    sv.hora_llegada,
-                    av.id,
-                    av.codigo_avion
-
-                ORDER BY
-                    sv.orden_segmento ASC
-                """;
+        return sql;
     }
 
-    private String sqlDestinosAutorizadosPorOrigen() {
-        return """
-                SELECT DISTINCT
-                    ap_llegada.id AS aeropuerto_id,
-                    ap_llegada.nombre AS nombre,
-                    ap_llegada.codigo_iata AS codigo_iata,
-                    ap_llegada.ciudad AS ciudad,
-                    ap_llegada.pais AS pais
+    private String sqlSegmentosVueloOperado() {
+        return
+                "SELECT " +
+                        "so.id AS segmento_operado_id, " +
+                        "sv.id AS segmento_vuelo_id, " +
+                        "so.orden_segmento AS orden_segmento, " +
 
-                FROM destino_autorizado da_origen
-                INNER JOIN destino_autorizado da_destino
-                        ON da_destino.aerolinea_id = da_origen.aerolinea_id
-                INNER JOIN aeropuerto ap_origen
-                        ON ap_origen.id = da_origen.aeropuerto_id
-                INNER JOIN aeropuerto ap_llegada
-                        ON ap_llegada.id = da_destino.aeropuerto_id
-                INNER JOIN status_catalog sc_origen
-                        ON sc_origen.id = da_origen.estado_id
-                INNER JOIN status_catalog sc_destino
-                        ON sc_destino.id = da_destino.estado_id
+                        "ap_salida.id AS aeropuerto_salida_id, " +
+                        "ap_salida.nombre AS aeropuerto_salida_nombre, " +
+                        "ap_salida.codigo_iata AS aeropuerto_salida_codigo_iata, " +
 
-                WHERE ap_origen.id = :aeropuertoSalidaId
-                  AND ap_llegada.id <> ap_origen.id
-                  AND UPPER(sc_origen.name) = 'ACTIVO'
-                  AND UPPER(sc_destino.name) = 'ACTIVO'
+                        "ap_llegada.id AS aeropuerto_llegada_id, " +
+                        "ap_llegada.nombre AS aeropuerto_llegada_nombre, " +
+                        "ap_llegada.codigo_iata AS aeropuerto_llegada_codigo_iata, " +
 
-                ORDER BY
-                    ap_llegada.pais ASC,
-                    ap_llegada.ciudad ASC,
-                    ap_llegada.nombre ASC
-                """;
+                        "sv.fecha_salida AS fecha_salida, " +
+                        "sv.hora_salida AS hora_salida, " +
+                        "sv.fecha_llegada AS fecha_llegada, " +
+                        "sv.hora_llegada AS hora_llegada, " +
+
+                        "av.id AS avion_id, " +
+                        "av.codigo_avion AS codigo_avion, " +
+
+                        "COALESCE(asientos.total, 0) AS asientos_disponibles_total, " +
+                        "COALESCE(asientos.economica, 0) AS asientos_disponibles_economica, " +
+                        "COALESCE(asientos.ejecutiva, 0) AS asientos_disponibles_ejecutiva " +
+
+                        "FROM segmento_operado so " +
+                        "JOIN segmento_vuelo sv ON sv.id = so.segmento_vuelo_id " +
+                        "JOIN aeropuerto ap_salida ON ap_salida.id = sv.aeropuerto_salida_id " +
+                        "JOIN aeropuerto ap_llegada ON ap_llegada.id = sv.aeropuerto_llegada_id " +
+                        "JOIN avion av ON av.id = so.avion_id " +
+                        "LEFT JOIN LATERAL ( " +
+                        "    SELECT " +
+                        "    COUNT(*) AS total, " +
+                        "    COUNT(*) FILTER (WHERE UPPER(cv.nombre) = 'ECONOMICA') AS economica, " +
+                        "    COUNT(*) FILTER (WHERE UPPER(cv.nombre) = 'EJECUTIVA') AS ejecutiva " +
+                        "    FROM asiento_vuelo avu " +
+                        "    JOIN estado_asiento ea ON ea.id = avu.estado_asiento_id " +
+                        "    LEFT JOIN asiento_ubi au ON au.codigo_asiento_sistema = avu.codigo_asiento_sistema " +
+                        "    LEFT JOIN clase_vuelo cv ON cv.id = au.clase_vuelo_id " +
+                        "    WHERE avu.segmento_operado_id = so.id " +
+                        "    AND UPPER(ea.nombre) = 'DISPONIBLE' " +
+                        ") asientos ON TRUE " +
+                        "WHERE so.vuelo_operado_id = :vueloOperadoId " +
+                        "ORDER BY so.orden_segmento";
     }
 
-    private String sqlFechasDisponibles() {
-        return """
-                SELECT
-                    vp.fecha_salida AS fecha_salida,
-                    COUNT(DISTINCT vo.id) AS vuelos_disponibles,
-                    MIN(pv.precio) AS precio_minimo
-
-                FROM vuelo_operado vo
-                INNER JOIN vuelo_programado vp ON vp.id = vo.vuelo_programado_id
-                INNER JOIN vuelo v ON v.id = vp.vuelo_id
-                INNER JOIN status_catalog sc ON sc.id = v.estado_id
-                INNER JOIN estado_vuelo ev ON ev.id = vo.estado_vuelo_id
-                INNER JOIN segmento_operado so ON so.vuelo_operado_id = vo.id
-                INNER JOIN asiento_vuelo avu ON avu.segmento_operado_id = so.id
-                INNER JOIN estado_asiento ea ON ea.id = avu.estado_asiento_id
-
-                LEFT JOIN precio_vuelo pv
-                       ON pv.vuelo_programado_id = vp.id
-                      AND pv.fecha_vigencia_hasta IS NULL
-
-                WHERE vp.aeropuerto_salida_id = :aeropuertoSalidaId
-                  AND vp.aeropuerto_llegada_id = :aeropuertoLlegadaId
-                  AND (
-                        vp.fecha_salida > CURRENT_DATE
-                        OR (
-                            vp.fecha_salida = CURRENT_DATE
-                            AND vp.hora_salida >= LOCALTIME
-                        )
-                  )
-                  AND UPPER(sc.name) = 'ACTIVO'
-                  AND UPPER(ev.nombre) = 'PROGRAMADO'
-                  AND UPPER(ea.nombre) = 'DISPONIBLE'
-
-                GROUP BY
-                    vp.fecha_salida
-
-                ORDER BY
-                    vp.fecha_salida ASC
-                """;
+    private String filtroUbicacion(String alias) {
+        return
+                "AND ( " +
+                        "LOWER(" + alias + ".pais) LIKE :q " +
+                        "OR LOWER(" + alias + ".ciudad) LIKE :q " +
+                        "OR LOWER(" + alias + ".nombre) LIKE :q " +
+                        "OR LOWER(COALESCE(" + alias + ".codigo_iata, '')) LIKE :q " +
+                        "OR LOWER(COALESCE(" + alias + ".codigo_icao, '')) LIKE :q " +
+                        ") ";
     }
 
-    private String sqlFechasRegresoDisponibles() {
-        return """
-                SELECT
-                    vp.fecha_salida AS fecha_salida,
-                    COUNT(DISTINCT vo.id) AS vuelos_disponibles,
-                    MIN(pv.precio) AS precio_minimo
+    private RowMapper<ClienteUbicacionDisponibleResponse> ubicacionMapper() {
+        return new RowMapper<ClienteUbicacionDisponibleResponse>() {
+            @Override
+            public ClienteUbicacionDisponibleResponse mapRow(ResultSet rs, int rowNum) throws SQLException {
+                ClienteUbicacionDisponibleResponse response = new ClienteUbicacionDisponibleResponse();
 
-                FROM vuelo_operado vo
-                INNER JOIN vuelo_programado vp ON vp.id = vo.vuelo_programado_id
-                INNER JOIN vuelo v ON v.id = vp.vuelo_id
-                INNER JOIN status_catalog sc ON sc.id = v.estado_id
-                INNER JOIN estado_vuelo ev ON ev.id = vo.estado_vuelo_id
-                INNER JOIN segmento_operado so ON so.vuelo_operado_id = vo.id
-                INNER JOIN asiento_vuelo avu ON avu.segmento_operado_id = so.id
-                INNER JOIN estado_asiento ea ON ea.id = avu.estado_asiento_id
+                response.setPais(rs.getString("pais"));
+                response.setCiudad(rs.getString("ciudad"));
+                response.setTotalAeropuertos(getInteger(rs, "total_aeropuertos"));
+                response.setTotalVuelos(getInteger(rs, "total_vuelos"));
 
-                LEFT JOIN precio_vuelo pv
-                       ON pv.vuelo_programado_id = vp.id
-                      AND pv.fecha_vigencia_hasta IS NULL
-
-                WHERE vp.aeropuerto_salida_id = :aeropuertoSalidaId
-                  AND vp.aeropuerto_llegada_id = :aeropuertoLlegadaId
-                  AND vp.fecha_salida > :fechaSalida
-                  AND UPPER(sc.name) = 'ACTIVO'
-                  AND UPPER(ev.nombre) = 'PROGRAMADO'
-                  AND UPPER(ea.nombre) = 'DISPONIBLE'
-
-                GROUP BY
-                    vp.fecha_salida
-
-                ORDER BY
-                    vp.fecha_salida ASC
-                """;
-    }
-
-    private RowMapper<ClienteVueloDisponibleResponse> vueloMapper() {
-        return (rs, rowNum) -> {
-            ClienteVueloDisponibleResponse response = new ClienteVueloDisponibleResponse();
-
-            response.setVueloOperadoId(getInteger(rs, "vuelo_operado_id"));
-            response.setVueloProgramadoId(getInteger(rs, "vuelo_programado_id"));
-            response.setVueloId(getInteger(rs, "vuelo_id"));
-            response.setCodigoVuelo(rs.getString("codigo_vuelo"));
-
-            response.setAerolineaId(getInteger(rs, "aerolinea_id"));
-            response.setAerolineaNombre(rs.getString("aerolinea_nombre"));
-
-            response.setAeropuertoSalidaId(getInteger(rs, "aeropuerto_salida_id"));
-            response.setAeropuertoSalidaNombre(rs.getString("aeropuerto_salida_nombre"));
-            response.setAeropuertoSalidaCodigoIata(rs.getString("aeropuerto_salida_codigo_iata"));
-
-            response.setAeropuertoLlegadaId(getInteger(rs, "aeropuerto_llegada_id"));
-            response.setAeropuertoLlegadaNombre(rs.getString("aeropuerto_llegada_nombre"));
-            response.setAeropuertoLlegadaCodigoIata(rs.getString("aeropuerto_llegada_codigo_iata"));
-
-            response.setPuertaEmbarqueSalida(rs.getString("puerta_embarque_salida"));
-            response.setPuertaEmbarqueLlegada(rs.getString("puerta_embarque_llegada"));
-
-            response.setFechaSalida(getLocalDate(rs, "fecha_salida"));
-            response.setHoraSalida(getLocalTime(rs, "hora_salida"));
-            response.setFechaLlegada(getLocalDate(rs, "fecha_llegada"));
-            response.setHoraLlegada(getLocalTime(rs, "hora_llegada"));
-
-            response.setDuracionMinutos(getLong(rs, "duracion_minutos"));
-
-            response.setPrecioEconomica(rs.getBigDecimal("precio_economica"));
-            response.setPrecioEjecutiva(rs.getBigDecimal("precio_ejecutiva"));
-
-            response.setTipoSegmentoVueloId(getInteger(rs, "tipo_segmento_vuelo_id"));
-            response.setTipoSegmentoVueloNombre(rs.getString("tipo_segmento_vuelo_nombre"));
-
-            response.setRequiereNuevoAsiento(rs.getBoolean("requiere_nuevo_asiento"));
-
-            response.setCantidadSegmentos(getInteger(rs, "cantidad_segmentos"));
-            response.setTuvoEscala(rs.getBoolean("tuvo_escala"));
-
-            response.setAsientosDisponiblesTotal(getInteger(rs, "asientos_disponibles_total"));
-            response.setAsientosDisponiblesEconomica(getInteger(rs, "asientos_disponibles_economica"));
-            response.setAsientosDisponiblesEjecutiva(getInteger(rs, "asientos_disponibles_ejecutiva"));
-
-            return response;
+                return response;
+            }
         };
     }
 
-    private RowMapper<ClienteVueloSegmentoDisponibleResponse> segmentoMapper() {
-        return (rs, rowNum) -> {
-            ClienteVueloSegmentoDisponibleResponse response = new ClienteVueloSegmentoDisponibleResponse();
+    private RowMapper<ClienteAeropuertoDisponibleResponse> aeropuertoDisponibleMapper() {
+        return new RowMapper<ClienteAeropuertoDisponibleResponse>() {
+            @Override
+            public ClienteAeropuertoDisponibleResponse mapRow(ResultSet rs, int rowNum) throws SQLException {
+                ClienteAeropuertoDisponibleResponse response = new ClienteAeropuertoDisponibleResponse();
 
-            response.setSegmentoOperadoId(getInteger(rs, "segmento_operado_id"));
-            response.setSegmentoVueloId(getInteger(rs, "segmento_vuelo_id"));
-            response.setOrdenSegmento(getInteger(rs, "orden_segmento"));
+                response.setAeropuertoId(getInteger(rs, "aeropuerto_id"));
+                response.setNombre(rs.getString("nombre"));
+                response.setCodigoIata(rs.getString("codigo_iata"));
+                response.setCodigoIcao(rs.getString("codigo_icao"));
+                response.setPais(rs.getString("pais"));
+                response.setCiudad(rs.getString("ciudad"));
+                response.setTotalVuelos(getInteger(rs, "total_vuelos"));
+                response.setAsientosDisponiblesTotal(getInteger(rs, "asientos_disponibles_total"));
 
-            response.setAeropuertoSalidaId(getInteger(rs, "aeropuerto_salida_id"));
-            response.setAeropuertoSalidaNombre(rs.getString("aeropuerto_salida_nombre"));
-            response.setAeropuertoSalidaCodigoIata(rs.getString("aeropuerto_salida_codigo_iata"));
-
-            response.setAeropuertoLlegadaId(getInteger(rs, "aeropuerto_llegada_id"));
-            response.setAeropuertoLlegadaNombre(rs.getString("aeropuerto_llegada_nombre"));
-            response.setAeropuertoLlegadaCodigoIata(rs.getString("aeropuerto_llegada_codigo_iata"));
-
-            response.setFechaSalida(getLocalDate(rs, "fecha_salida"));
-            response.setHoraSalida(getLocalTime(rs, "hora_salida"));
-            response.setFechaLlegada(getLocalDate(rs, "fecha_llegada"));
-            response.setHoraLlegada(getLocalTime(rs, "hora_llegada"));
-
-            response.setAvionId(getInteger(rs, "avion_id"));
-            response.setCodigoAvion(rs.getString("codigo_avion"));
-
-            response.setAsientosDisponiblesTotal(getInteger(rs, "asientos_disponibles_total"));
-            response.setAsientosDisponiblesEconomica(getInteger(rs, "asientos_disponibles_economica"));
-            response.setAsientosDisponiblesEjecutiva(getInteger(rs, "asientos_disponibles_ejecutiva"));
-
-            return response;
+                return response;
+            }
         };
     }
 
     private RowMapper<ClienteDestinoAutorizadoResponse> destinoAutorizadoMapper() {
-        return (rs, rowNum) -> {
-            ClienteDestinoAutorizadoResponse response = new ClienteDestinoAutorizadoResponse();
+        return new RowMapper<ClienteDestinoAutorizadoResponse>() {
+            @Override
+            public ClienteDestinoAutorizadoResponse mapRow(ResultSet rs, int rowNum) throws SQLException {
+                ClienteDestinoAutorizadoResponse response = new ClienteDestinoAutorizadoResponse();
 
-            response.setAeropuertoId(getInteger(rs, "aeropuerto_id"));
-            response.setNombre(rs.getString("nombre"));
-            response.setCodigoIata(rs.getString("codigo_iata"));
-            response.setCiudad(rs.getString("ciudad"));
-            response.setPais(rs.getString("pais"));
+                response.setAeropuertoId(getInteger(rs, "aeropuerto_id"));
+                response.setNombre(rs.getString("nombre"));
+                response.setCodigoIata(rs.getString("codigo_iata"));
+                response.setCiudad(rs.getString("ciudad"));
+                response.setPais(rs.getString("pais"));
 
-            return response;
+                return response;
+            }
         };
     }
 
     private RowMapper<ClienteFechaDisponibleResponse> fechaDisponibleMapper() {
-        return (rs, rowNum) -> {
-            ClienteFechaDisponibleResponse response = new ClienteFechaDisponibleResponse();
+        return new RowMapper<ClienteFechaDisponibleResponse>() {
+            @Override
+            public ClienteFechaDisponibleResponse mapRow(ResultSet rs, int rowNum) throws SQLException {
+                ClienteFechaDisponibleResponse response = new ClienteFechaDisponibleResponse();
 
-            response.setFechaSalida(getLocalDate(rs, "fecha_salida"));
-            response.setVuelosDisponibles(getLong(rs, "vuelos_disponibles"));
+                Date fecha = rs.getDate("fecha_salida");
 
-            BigDecimal precioMinimo = rs.getBigDecimal("precio_minimo");
-            response.setPrecioMinimo(precioMinimo);
+                response.setFechaSalida(fecha != null ? fecha.toLocalDate() : null);
+                response.setVuelosDisponibles(getLong(rs, "vuelos_disponibles"));
+                response.setPrecioMinimo(rs.getBigDecimal("precio_minimo"));
 
-            return response;
+                return response;
+            }
         };
     }
 
-    private Integer getInteger(
-            ResultSet rs,
-            String column
-    ) throws SQLException {
+    private RowMapper<ClienteVueloDisponibleResponse> vueloMapper() {
+        return new RowMapper<ClienteVueloDisponibleResponse>() {
+            @Override
+            public ClienteVueloDisponibleResponse mapRow(ResultSet rs, int rowNum) throws SQLException {
+                ClienteVueloDisponibleResponse response = new ClienteVueloDisponibleResponse();
 
+                response.setVueloOperadoId(getInteger(rs, "vuelo_operado_id"));
+                response.setVueloProgramadoId(getInteger(rs, "vuelo_programado_id"));
+                response.setVueloId(getInteger(rs, "vuelo_id"));
+                response.setCodigoVuelo(rs.getString("codigo_vuelo"));
+
+                response.setAerolineaId(getInteger(rs, "aerolinea_id"));
+                response.setAerolineaNombre(rs.getString("aerolinea_nombre"));
+
+                response.setAeropuertoSalidaId(getInteger(rs, "aeropuerto_salida_id"));
+                response.setAeropuertoSalidaNombre(rs.getString("aeropuerto_salida_nombre"));
+                response.setAeropuertoSalidaCodigoIata(rs.getString("aeropuerto_salida_codigo_iata"));
+
+                response.setAeropuertoLlegadaId(getInteger(rs, "aeropuerto_llegada_id"));
+                response.setAeropuertoLlegadaNombre(rs.getString("aeropuerto_llegada_nombre"));
+                response.setAeropuertoLlegadaCodigoIata(rs.getString("aeropuerto_llegada_codigo_iata"));
+
+                response.setPuertaEmbarqueSalida(rs.getString("puerta_embarque_salida"));
+                response.setPuertaEmbarqueLlegada(rs.getString("puerta_embarque_llegada"));
+
+                response.setFechaSalida(getLocalDate(rs, "fecha_salida"));
+                response.setHoraSalida(getLocalTime(rs, "hora_salida"));
+                response.setFechaLlegada(getLocalDate(rs, "fecha_llegada"));
+                response.setHoraLlegada(getLocalTime(rs, "hora_llegada"));
+
+                response.setDuracionMinutos(getLong(rs, "duracion_minutos"));
+
+                response.setPrecioEconomica(getBigDecimal(rs, "precio_economica"));
+                response.setPrecioEjecutiva(getBigDecimal(rs, "precio_ejecutiva"));
+
+                response.setTipoSegmentoVueloId(getInteger(rs, "tipo_segmento_vuelo_id"));
+                response.setTipoSegmentoVueloNombre(rs.getString("tipo_segmento_vuelo_nombre"));
+                response.setRequiereNuevoAsiento(rs.getBoolean("requiere_nuevo_asiento"));
+
+                response.setCantidadSegmentos(getInteger(rs, "cantidad_segmentos"));
+                response.setTuvoEscala(rs.getBoolean("tuvo_escala"));
+
+                response.setAsientosDisponiblesTotal(getInteger(rs, "asientos_disponibles_total"));
+                response.setAsientosDisponiblesEconomica(getInteger(rs, "asientos_disponibles_economica"));
+                response.setAsientosDisponiblesEjecutiva(getInteger(rs, "asientos_disponibles_ejecutiva"));
+
+                return response;
+            }
+        };
+    }
+
+    private RowMapper<ClienteVueloSegmentoDisponibleResponse> segmentoMapper() {
+        return new RowMapper<ClienteVueloSegmentoDisponibleResponse>() {
+            @Override
+            public ClienteVueloSegmentoDisponibleResponse mapRow(ResultSet rs, int rowNum) throws SQLException {
+                ClienteVueloSegmentoDisponibleResponse response = new ClienteVueloSegmentoDisponibleResponse();
+
+                response.setSegmentoOperadoId(getInteger(rs, "segmento_operado_id"));
+                response.setSegmentoVueloId(getInteger(rs, "segmento_vuelo_id"));
+                response.setOrdenSegmento(getInteger(rs, "orden_segmento"));
+
+                response.setAeropuertoSalidaId(getInteger(rs, "aeropuerto_salida_id"));
+                response.setAeropuertoSalidaNombre(rs.getString("aeropuerto_salida_nombre"));
+                response.setAeropuertoSalidaCodigoIata(rs.getString("aeropuerto_salida_codigo_iata"));
+
+                response.setAeropuertoLlegadaId(getInteger(rs, "aeropuerto_llegada_id"));
+                response.setAeropuertoLlegadaNombre(rs.getString("aeropuerto_llegada_nombre"));
+                response.setAeropuertoLlegadaCodigoIata(rs.getString("aeropuerto_llegada_codigo_iata"));
+
+                response.setFechaSalida(getLocalDate(rs, "fecha_salida"));
+                response.setHoraSalida(getLocalTime(rs, "hora_salida"));
+                response.setFechaLlegada(getLocalDate(rs, "fecha_llegada"));
+                response.setHoraLlegada(getLocalTime(rs, "hora_llegada"));
+
+                response.setAvionId(getInteger(rs, "avion_id"));
+                response.setCodigoAvion(rs.getString("codigo_avion"));
+
+                response.setAsientosDisponiblesTotal(getInteger(rs, "asientos_disponibles_total"));
+                response.setAsientosDisponiblesEconomica(getInteger(rs, "asientos_disponibles_economica"));
+                response.setAsientosDisponiblesEjecutiva(getInteger(rs, "asientos_disponibles_ejecutiva"));
+
+                return response;
+            }
+        };
+    }
+
+    private Integer getInteger(ResultSet rs, String column) throws SQLException {
         Object value = rs.getObject(column);
 
         if (value == null) {
             return null;
         }
 
-        return ((Number) value).intValue();
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+
+        return Integer.valueOf(value.toString());
     }
 
-    private Long getLong(
-            ResultSet rs,
-            String column
-    ) throws SQLException {
-
+    private Long getLong(ResultSet rs, String column) throws SQLException {
         Object value = rs.getObject(column);
 
         if (value == null) {
             return null;
         }
 
-        return ((Number) value).longValue();
-    }
-
-    private LocalDate getLocalDate(
-            ResultSet rs,
-            String column
-    ) throws SQLException {
-
-        Date value = rs.getDate(column);
-
-        if (value == null) {
-            return null;
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
         }
 
-        return value.toLocalDate();
+        return Long.valueOf(value.toString());
     }
 
-    private LocalTime getLocalTime(
-            ResultSet rs,
-            String column
-    ) throws SQLException {
+    private BigDecimal getBigDecimal(ResultSet rs, String column) throws SQLException {
+        BigDecimal value = rs.getBigDecimal(column);
+        return value != null ? value : BigDecimal.ZERO;
+    }
 
-        Time value = rs.getTime(column);
+    private LocalDate getLocalDate(ResultSet rs, String column) throws SQLException {
+        Date date = rs.getDate(column);
+        return date != null ? date.toLocalDate() : null;
+    }
 
-        if (value == null) {
-            return null;
-        }
+    private LocalTime getLocalTime(ResultSet rs, String column) throws SQLException {
+        Time time = rs.getTime(column);
+        return time != null ? time.toLocalTime() : null;
+    }
 
-        return value.toLocalTime();
+    private boolean tieneTexto(String value) {
+        return value != null && !value.trim().isEmpty();
+    }
+
+    private String like(String value) {
+        return "%" + normalizar(value) + "%";
+    }
+
+    private String normalizar(String value) {
+        return value == null ? null : value.trim().toLowerCase();
     }
 }

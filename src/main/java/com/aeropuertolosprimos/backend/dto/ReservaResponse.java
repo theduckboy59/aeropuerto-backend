@@ -32,6 +32,8 @@ public class ReservaResponse {
 
     private Integer cantidadMaletas;
 
+    private Integer cantidadPasajeros;
+
     private BigDecimal subtotal;
 
     private BigDecimal recargoTotal;

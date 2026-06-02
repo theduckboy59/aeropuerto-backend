@@ -80,7 +80,9 @@ public class ReservaServiceImpl implements ReservaService {
                 );
 
         List<SegmentoOperado> segmentosOperados = segmentoOperadoRepository
-                .findByVueloOperadoIdOrderByOrdenSegmentoAsc(vueloOperado.getId());
+                .findByVueloOperadoIdOrderByOrdenSegmentoAsc(
+                        vueloOperado.getId()
+                );
 
         if (segmentosOperados.isEmpty()) {
             throw new BusinessException("El vuelo operado no tiene segmentos");
@@ -127,7 +129,9 @@ public class ReservaServiceImpl implements ReservaService {
                 );
 
         Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
-        Integer estadoCanceladoId = estadoCancelado != null ? estadoCancelado.getId() : null;
+        Integer estadoCanceladoId = estadoCancelado != null
+                ? estadoCancelado.getId()
+                : null;
 
         if (request.getUserId() != null) {
             userRepository.findById(request.getUserId())
@@ -178,7 +182,12 @@ public class ReservaServiceImpl implements ReservaService {
 
         reserva = reservaRepository.save(reserva);
 
-        reserva.setCodigoReserva(generarCodigo("RES", reserva.getId()));
+        reserva.setCodigoReserva(
+                generarCodigo(
+                        "RES",
+                        reserva.getId()
+                )
+        );
 
         reserva = reservaRepository.save(reserva);
 
@@ -217,8 +226,19 @@ public class ReservaServiceImpl implements ReservaService {
 
             boleto = boletoRepository.save(boleto);
 
-            boleto.setCodigoBoleto(generarCodigo("BOL", boleto.getId()));
-            boleto.setCodigoPaseAbordar(generarCodigo("PAB", boleto.getId()));
+            boleto.setCodigoBoleto(
+                    generarCodigo(
+                            "BOL",
+                            boleto.getId()
+                    )
+            );
+
+            boleto.setCodigoPaseAbordar(
+                    generarCodigo(
+                            "PAB",
+                            boleto.getId()
+                    )
+            );
 
             boleto = boletoRepository.save(boleto);
 
@@ -245,7 +265,9 @@ public class ReservaServiceImpl implements ReservaService {
 
                     boletoAsientoRepository.save(boletoAsiento);
 
-                    segmentoPlan.asientoVuelo.setEstadoAsientoId(estadoReservado.getId());
+                    segmentoPlan.asientoVuelo.setEstadoAsientoId(
+                            estadoReservado.getId()
+                    );
 
                     asientoVueloRepository.save(segmentoPlan.asientoVuelo);
                 }
@@ -316,9 +338,17 @@ public class ReservaServiceImpl implements ReservaService {
                         estadoActivoId
                 )
                 .stream()
-                .map(rp -> reservaRepository.findById(rp.getReservaId()).orElse(null))
+                .map(rp ->
+                        reservaRepository.findById(rp.getReservaId())
+                                .orElse(null)
+                )
                 .filter(Objects::nonNull)
-                .filter(r -> Objects.equals(r.getEstadoId(), estadoActivoId))
+                .filter(r ->
+                        Objects.equals(
+                                r.getEstadoId(),
+                                estadoActivoId
+                        )
+                )
                 .map(this::mapResponse)
                 .toList();
     }
@@ -358,7 +388,10 @@ public class ReservaServiceImpl implements ReservaService {
                         new BusinessException("Estado de equipaje CANCELADO no encontrado")
                 );
 
-        if (Objects.equals(estadoCancelada.getId(), reserva.getEstadoReservaId())) {
+        if (Objects.equals(
+                estadoCancelada.getId(),
+                reserva.getEstadoReservaId()
+        )) {
             throw new BusinessException("La reserva ya está cancelada");
         }
 
@@ -366,25 +399,35 @@ public class ReservaServiceImpl implements ReservaService {
 
         reserva = reservaRepository.save(reserva);
 
-        List<Boleto> boletos = boletoRepository.findByReservaIdOrderByIdAsc(reserva.getId());
+        List<Boleto> boletos = boletoRepository.findByReservaIdOrderByIdAsc(
+                reserva.getId()
+        );
 
         for (Boleto boleto : boletos) {
 
-            boleto.setEstadoBoletoId(estadoBoletoCancelado.getId());
+            boleto.setEstadoBoletoId(
+                    estadoBoletoCancelado.getId()
+            );
 
             boletoRepository.save(boleto);
 
             List<BoletoSegmento> segmentos = boletoSegmentoRepository
-                    .findByBoletoIdOrderByOrdenSegmentoAsc(boleto.getId());
+                    .findByBoletoIdOrderByOrdenSegmentoAsc(
+                            boleto.getId()
+                    );
 
             for (BoletoSegmento boletoSegmento : segmentos) {
 
-                boletoSegmento.setEstadoBoletoId(estadoBoletoCancelado.getId());
+                boletoSegmento.setEstadoBoletoId(
+                        estadoBoletoCancelado.getId()
+                );
 
                 boletoSegmentoRepository.save(boletoSegmento);
 
                 List<BoletoAsiento> asientos = boletoAsientoRepository
-                        .findByBoletoSegmentoId(boletoSegmento.getId());
+                        .findByBoletoSegmentoId(
+                                boletoSegmento.getId()
+                        );
 
                 for (BoletoAsiento boletoAsiento : asientos) {
 
@@ -392,18 +435,25 @@ public class ReservaServiceImpl implements ReservaService {
                         continue;
                     }
 
-                    asientoVueloRepository.findById(boletoAsiento.getAsientoVueloId())
+                    asientoVueloRepository
+                            .findById(boletoAsiento.getAsientoVueloId())
                             .ifPresent(asientoVuelo -> {
-                                asientoVuelo.setEstadoAsientoId(estadoDisponible.getId());
+                                asientoVuelo.setEstadoAsientoId(
+                                        estadoDisponible.getId()
+                                );
                                 asientoVueloRepository.save(asientoVuelo);
                             });
                 }
             }
 
-            List<Equipaje> equipajes = equipajeRepository.findByBoletoId(boleto.getId());
+            List<Equipaje> equipajes = equipajeRepository.findByBoletoId(
+                    boleto.getId()
+            );
 
             for (Equipaje equipaje : equipajes) {
-                equipaje.setEstadoEquipajeId(estadoEquipajeCancelado.getId());
+                equipaje.setEstadoEquipajeId(
+                        estadoEquipajeCancelado.getId()
+                );
                 equipajeRepository.save(equipaje);
             }
         }
@@ -479,7 +529,9 @@ public class ReservaServiceImpl implements ReservaService {
                     ReservaSegmentoAsientoRequest seleccionado =
                             seleccionPorSegmento.get(segmentoOperado.getId());
 
-                    if (seleccionado == null || seleccionado.getAsientoVueloId() == null) {
+                    if (seleccionado == null ||
+                            seleccionado.getAsientoVueloId() == null) {
+
                         throw new BusinessException("Debe seleccionar asiento para cada segmento del vuelo");
                     }
 
@@ -493,22 +545,33 @@ public class ReservaServiceImpl implements ReservaService {
                                     new BusinessException("Asiento de vuelo no encontrado: " + seleccionado.getAsientoVueloId())
                             );
 
-                    if (!Objects.equals(asientoVuelo.getSegmentoOperadoId(), segmentoOperado.getId())) {
+                    if (!Objects.equals(
+                            asientoVuelo.getSegmentoOperadoId(),
+                            segmentoOperado.getId()
+                    )) {
                         throw new BusinessException("El asiento no pertenece al segmento seleccionado");
                     }
 
-                    if (!Objects.equals(asientoVuelo.getEstadoAsientoId(), estadoDisponible.getId())) {
+                    if (!Objects.equals(
+                            asientoVuelo.getEstadoAsientoId(),
+                            estadoDisponible.getId()
+                    )) {
                         throw new BusinessException("El asiento " + asientoVuelo.getId() + " no está disponible");
                     }
 
                     AsientoUbi asientoUbi = asientoUbiRepository
-                            .findFirstByCodigoAsientoSistemaOrderByIdAsc(asientoVuelo.getCodigoAsientoSistema())
+                            .findFirstByCodigoAsientoSistemaOrderByIdAsc(
+                                    asientoVuelo.getCodigoAsientoSistema()
+                            )
                             .orElseThrow(() ->
                                     new BusinessException("No se encontró la ubicación física del asiento")
                             );
 
                     if (asientoUbi.getClaseVueloId() == null ||
-                            !Objects.equals(asientoUbi.getClaseVueloId(), item.getClaseVueloId())) {
+                            !Objects.equals(
+                                    asientoUbi.getClaseVueloId(),
+                                    item.getClaseVueloId()
+                            )) {
 
                         throw new BusinessException("La clase seleccionada no coincide con la clase del asiento");
                     }
@@ -628,7 +691,10 @@ public class ReservaServiceImpl implements ReservaService {
                             new BusinessException("Segmento operado no encontrado: " + seleccionado.getSegmentoOperadoId())
                     );
 
-            if (!Objects.equals(segmentoOperado.getVueloOperadoId(), vueloOperadoId)) {
+            if (!Objects.equals(
+                    segmentoOperado.getVueloOperadoId(),
+                    vueloOperadoId
+            )) {
                 throw new BusinessException("El segmento no pertenece al vuelo operado seleccionado");
             }
 
@@ -719,7 +785,9 @@ public class ReservaServiceImpl implements ReservaService {
         );
 
         if (!precios.isEmpty()) {
-            return precios.get(0) != null ? precios.get(0) : BigDecimal.ZERO;
+            return precios.get(0) != null
+                    ? precios.get(0)
+                    : BigDecimal.ZERO;
         }
 
         if (precioRequest != null) {
@@ -746,7 +814,8 @@ public class ReservaServiceImpl implements ReservaService {
                 """
                 SELECT COALESCE(rat.recargo, 0)
                 FROM recargo_asiento_tipo rat
-                JOIN tipo_asiento ta ON UPPER(ta.nombre) = UPPER(rat.tipo_asiento)
+                JOIN tipo_asiento ta
+                  ON UPPER(ta.nombre) = UPPER(rat.tipo_asiento)
                 WHERE rat.vuelo_programado_id = ?
                   AND rat.clase_vuelo_id = ?
                   AND ta.id = ?
@@ -763,7 +832,9 @@ public class ReservaServiceImpl implements ReservaService {
             return BigDecimal.ZERO;
         }
 
-        return recargos.get(0) != null ? recargos.get(0) : BigDecimal.ZERO;
+        return recargos.get(0) != null
+                ? recargos.get(0)
+                : BigDecimal.ZERO;
     }
 
     private void validarBase(
@@ -781,7 +852,9 @@ public class ReservaServiceImpl implements ReservaService {
             ReservaRequest request
     ) {
 
-        if (request.getPasajeros() != null && !request.getPasajeros().isEmpty()) {
+        if (request.getPasajeros() != null &&
+                !request.getPasajeros().isEmpty()) {
+
             return request.getPasajeros();
         }
 
@@ -870,10 +943,12 @@ public class ReservaServiceImpl implements ReservaService {
             ReservaPasajeroItemRequest item
     ) {
 
-        if (item == null ||
-                item.getCantidadMaletas() == null) {
-
+        if (item == null) {
             throw new BusinessException("Debe ingresar los campos obligatorios de cada pasajero");
+        }
+
+        if (item.getCantidadMaletas() == null) {
+            item.setCantidadMaletas(0);
         }
 
         if (item.getPasajeroId() == null) {
@@ -901,7 +976,8 @@ public class ReservaServiceImpl implements ReservaService {
             ReservaPasajeroItemRequest item
     ) {
 
-        return item.getRequiereAsiento() == null || item.getRequiereAsiento();
+        return item.getRequiereAsiento() == null ||
+                item.getRequiereAsiento();
     }
 
     private ReservaResponse mapResponse(
@@ -925,13 +1001,16 @@ public class ReservaServiceImpl implements ReservaService {
                     );
         }
 
-        List<Boleto> boletos = boletoRepository.findByReservaIdOrderByIdAsc(reserva.getId());
+        List<Boleto> boletos = boletoRepository.findByReservaIdOrderByIdAsc(
+                reserva.getId()
+        );
 
         List<ReservaBoletoItemResponse> boletosResponse = boletos.stream()
                 .map(this::mapBoletoItem)
                 .toList();
 
         response.setBoletos(boletosResponse);
+        response.setCantidadPasajeros(boletosResponse.size());
 
         if (!boletos.isEmpty()) {
 
@@ -969,7 +1048,16 @@ public class ReservaServiceImpl implements ReservaService {
         response.setBoletoId(boleto.getId());
         response.setCodigoBoleto(boleto.getCodigoBoleto());
         response.setCodigoPaseAbordar(boleto.getCodigoPaseAbordar());
+        response.setPrecioBase(boleto.getPrecioBase());
+        response.setRecargoEquipaje(boleto.getRecargoEquipaje());
         response.setTotal(boleto.getTotal());
+
+        if (boleto.getEstadoBoletoId() != null) {
+            estadoBoletoRepository.findById(boleto.getEstadoBoletoId())
+                    .ifPresent(estado ->
+                            response.setEstadoBoleto(estado.getNombre())
+                    );
+        }
 
         pasajeroRepository.findById(boleto.getPasajeroId())
                 .ifPresent(pasajero -> {
@@ -977,7 +1065,9 @@ public class ReservaServiceImpl implements ReservaService {
                     response.setPasaporte(pasajero.getPasaporte());
                 });
 
-        List<Equipaje> equipajes = equipajeRepository.findByBoletoId(boleto.getId());
+        List<Equipaje> equipajes = equipajeRepository.findByBoletoId(
+                boleto.getId()
+        );
 
         long maletasUnicas = equipajes.stream()
                 .map(Equipaje::getNumeroMaleta)
@@ -988,7 +1078,9 @@ public class ReservaServiceImpl implements ReservaService {
         response.setCantidadMaletas((int) maletasUnicas);
 
         List<BoletoSegmento> segmentos = boletoSegmentoRepository
-                .findByBoletoIdOrderByOrdenSegmentoAsc(boleto.getId());
+                .findByBoletoIdOrderByOrdenSegmentoAsc(
+                        boleto.getId()
+                );
 
         List<ReservaBoletoSegmentoResponse> segmentosResponse = segmentos.stream()
                 .map(this::mapBoletoSegmento)
@@ -1017,8 +1109,17 @@ public class ReservaServiceImpl implements ReservaService {
         response.setSegmentoOperadoId(boletoSegmento.getSegmentoOperadoId());
         response.setOrdenSegmento(boletoSegmento.getOrdenSegmento());
 
+        if (boletoSegmento.getEstadoBoletoId() != null) {
+            estadoBoletoRepository.findById(boletoSegmento.getEstadoBoletoId())
+                    .ifPresent(estado ->
+                            response.setEstadoBoletoSegmento(estado.getNombre())
+                    );
+        }
+
         List<BoletoAsiento> asientos = boletoAsientoRepository
-                .findByBoletoSegmentoId(boletoSegmento.getId());
+                .findByBoletoSegmentoId(
+                        boletoSegmento.getId()
+                );
 
         if (asientos.isEmpty()) {
             return response;

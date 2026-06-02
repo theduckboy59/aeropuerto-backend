@@ -18,4 +18,6 @@ public class ReservaBoletoSegmentoResponse {
     private Integer claseVueloId;
 
     private String claseVueloNombre;
+
+    private String estadoBoletoSegmento;
 }

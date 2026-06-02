@@ -26,9 +26,7 @@ public class ReservaRequest {
 
     private Boolean requiereAsiento;
 
-
     private List<ReservaSegmentoAsientoRequest> segmentosAsientos;
-
 
     private List<ReservaPasajeroItemRequest> pasajeros;
 }

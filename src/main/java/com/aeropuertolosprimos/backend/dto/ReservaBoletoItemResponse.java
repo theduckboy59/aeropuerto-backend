@@ -26,7 +26,13 @@ public class ReservaBoletoItemResponse {
 
     private Integer cantidadMaletas;
 
+    private BigDecimal precioBase;
+
+    private BigDecimal recargoEquipaje;
+
     private BigDecimal total;
+
+    private String estadoBoleto;
 
     private List<ReservaBoletoSegmentoResponse> segmentos;
 }
