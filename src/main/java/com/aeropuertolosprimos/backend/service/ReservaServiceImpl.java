@@ -15,12 +15,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 public class ReservaServiceImpl implements ReservaService {
 
+        private static final String ESTADO_RESERVA_CREADA = "CREADA";
     private static final String ESTADO_RESERVA_CONFIRMADA = "CONFIRMADA";
     private static final String ESTADO_RESERVA_CANCELADA = "CANCELADA";
 
@@ -58,8 +62,13 @@ public class ReservaServiceImpl implements ReservaService {
     private final TipoEquipajeRepository tipoEquipajeRepository;
     private final EstadoEquipajeRepository estadoEquipajeRepository;
     private final ClaseVueloRepository claseVueloRepository;
+        private final PagoRepository pagoRepository;
+        private final EstadoPagoRepository estadoPagoRepository;
+        private final MetodoPagoRepository metodoPagoRepository;
+        private final FacturaRepository facturaRepository;
 
     private final CatalogoEstadoService catalogoEstadoService;
+        private final PagoService pagoService;
 
     private final JdbcTemplate jdbc;
 
@@ -84,14 +93,20 @@ public class ReservaServiceImpl implements ReservaService {
                         vueloOperado.getId()
                 );
 
+        validarPasajerosSinCruceHorario(
+                request,
+                items,
+                segmentosOperados
+        );
+
         if (segmentosOperados.isEmpty()) {
             throw new BusinessException("El vuelo operado no tiene segmentos");
         }
 
         EstadoReserva estadoReserva = estadoReservaRepository
-                .findByNombreIgnoreCase(ESTADO_RESERVA_CONFIRMADA)
+                .findByNombreIgnoreCase(ESTADO_RESERVA_CREADA)
                 .orElseThrow(() ->
-                        new BusinessException("Estado de reserva CONFIRMADA no encontrado")
+                        new BusinessException("Estado de reserva CREADA no encontrado")
                 );
 
         EstadoBoleto estadoBoleto = estadoBoletoRepository
@@ -294,6 +309,8 @@ public class ReservaServiceImpl implements ReservaService {
             }
         }
 
+                pagoService.crearPagoReservaPendiente(reserva.getId());
+
         ReservaResponse response = mapResponse(reserva);
 
         response.setMensaje("Reserva creada correctamente");
@@ -491,12 +508,6 @@ public class ReservaServiceImpl implements ReservaService {
                 throw new BusinessException("No puede repetir pasajeros en la misma reserva");
             }
 
-            validarCruceHorarioPasajero(
-                    pasajero,
-                    segmentosOperados,
-                    estadoCanceladoId
-            );
-
             boolean requiereAsiento = requiereAsiento(item);
 
             List<SegmentoAsientoPlan> segmentosPlan = new ArrayList<>();
@@ -631,44 +642,152 @@ public class ReservaServiceImpl implements ReservaService {
         return planes;
     }
 
-    private void validarCruceHorarioPasajero(
-            Pasajero pasajero,
-            List<SegmentoOperado> segmentosOperados,
-            Integer estadoCanceladoId
-    ) {
+        private void validarPasajerosSinCruceHorario(
+                        ReservaRequest request,
+                        List<ReservaPasajeroItemRequest> items,
+                        List<SegmentoOperado> segmentosOperados
+        ) {
 
-        Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+                if (segmentosOperados == null || segmentosOperados.isEmpty()) {
+                        throw new BusinessException("El vuelo operado no tiene segmentos");
+                }
 
-        for (SegmentoOperado segmentoOperado : segmentosOperados) {
+                LocalDateTime inicioNuevo = obtenerInicioVueloNuevo(segmentosOperados);
+                LocalDateTime finNuevo = obtenerFinVueloNuevo(segmentosOperados);
 
-            SegmentoVuelo segmentoVuelo = segmentoVueloRepository
-                    .findById(segmentoOperado.getSegmentoVueloId())
-                    .orElseThrow(() ->
-                            new BusinessException("Segmento de vuelo no encontrado")
-                    );
+                if (inicioNuevo == null || finNuevo == null) {
+                        throw new BusinessException("El vuelo no tiene fecha y hora completa");
+                }
 
-            if (segmentoVuelo.getFechaSalida() == null ||
-                    segmentoVuelo.getHoraSalida() == null) {
-                continue;
-            }
+                Set<String> pasaportes = new LinkedHashSet<>();
 
-            long cruces = boletoRepository.countBoletosPasajeroMismaFechaHora(
-                    pasajero.getId(),
-                    segmentoVuelo.getFechaSalida(),
-                    segmentoVuelo.getHoraSalida(),
-                    estadoActivoId,
-                    estadoCanceladoId
-            );
+                for (ReservaPasajeroItemRequest item : items) {
+                        if (item.getPasaporte() != null && !item.getPasaporte().isBlank()) {
+                                pasaportes.add(item.getPasaporte().trim());
+                        }
 
-            if (cruces > 0) {
-                throw new BusinessException(
-                        "No se puede seleccionar el vuelo porque el pasajero " +
-                                pasajero.getNombreCompleto() +
-                                " ya tiene vuelos asignados"
-                );
-            }
+                        if (item.getPasajeroId() != null) {
+                                pasajeroRepository.findById(item.getPasajeroId())
+                                                .ifPresent(p -> {
+                                                        if (p.getPasaporte() != null && !p.getPasaporte().isBlank()) {
+                                                                pasaportes.add(p.getPasaporte().trim());
+                                                        }
+                                                });
+                        }
+                }
+
+                if (pasaportes.isEmpty() && request.getPasajeroId() != null) {
+                        pasajeroRepository.findById(request.getPasajeroId())
+                                        .ifPresent(p -> {
+                                                if (p.getPasaporte() != null && !p.getPasaporte().isBlank()) {
+                                                        pasaportes.add(p.getPasaporte().trim());
+                                                }
+                                        });
+                }
+
+                for (String pasaporte : pasaportes) {
+                        validarPasaporteSinReservaCruzada(
+                                        pasaporte,
+                                        inicioNuevo,
+                                        finNuevo
+                        );
+                }
         }
-    }
+
+        private LocalDateTime obtenerInicioVueloNuevo(
+                        List<SegmentoOperado> segmentosOperados
+        ) {
+
+                SegmentoOperado primero = segmentosOperados.get(0);
+
+                SegmentoVuelo segmentoVuelo = segmentoVueloRepository
+                                .findById(primero.getSegmentoVueloId())
+                                .orElseThrow(() ->
+                                                new BusinessException("Segmento de vuelo no encontrado")
+                                );
+
+                LocalDate fecha = segmentoVuelo.getFechaSalida();
+                LocalTime hora = segmentoVuelo.getHoraSalida();
+
+                if (fecha == null || hora == null) {
+                        return null;
+                }
+
+                return LocalDateTime.of(fecha, hora);
+        }
+
+        private LocalDateTime obtenerFinVueloNuevo(
+                        List<SegmentoOperado> segmentosOperados
+        ) {
+
+                SegmentoOperado ultimo = segmentosOperados.get(segmentosOperados.size() - 1);
+
+                SegmentoVuelo segmentoVuelo = segmentoVueloRepository
+                                .findById(ultimo.getSegmentoVueloId())
+                                .orElseThrow(() ->
+                                                new BusinessException("Segmento de vuelo no encontrado")
+                                );
+
+                LocalDate fecha = segmentoVuelo.getFechaLlegada();
+                LocalTime hora = segmentoVuelo.getHoraLlegada();
+
+                if (fecha == null || hora == null) {
+                        return null;
+                }
+
+                return LocalDateTime.of(fecha, hora);
+        }
+
+        private void validarPasaporteSinReservaCruzada(
+                        String pasaporte,
+                        LocalDateTime inicioNuevo,
+                        LocalDateTime finNuevo
+        ) {
+
+                Integer cruces = jdbc.queryForObject(
+                                """
+                                SELECT COUNT(*)
+                                FROM (
+                                        SELECT
+                                                r.id AS reserva_id,
+                                                MIN(sv.fecha_salida + sv.hora_salida) AS inicio_reserva,
+                                                MAX(sv.fecha_llegada + sv.hora_llegada) AS fin_reserva
+                                        FROM reserva r
+                                        JOIN reserva_pasajero rp
+                                                ON rp.reserva_id = r.id
+                                        JOIN pasajero p
+                                                ON p.id = rp.pasajero_id
+                                        JOIN estado_reserva er
+                                                ON er.id = r.estado_reserva_id
+                                        JOIN vuelo_operado vo
+                                                ON vo.id = r.vuelo_operado_id
+                                        JOIN segmento_operado so
+                                                ON so.vuelo_operado_id = vo.id
+                                        JOIN segmento_vuelo sv
+                                                ON sv.id = so.segmento_vuelo_id
+                                        WHERE UPPER(p.pasaporte) = UPPER(?)
+                                          AND UPPER(er.nombre) <> 'CANCELADA'
+                                          AND sv.fecha_salida IS NOT NULL
+                                          AND sv.hora_salida IS NOT NULL
+                                          AND sv.fecha_llegada IS NOT NULL
+                                          AND sv.hora_llegada IS NOT NULL
+                                        GROUP BY r.id
+                                ) x
+                                WHERE x.inicio_reserva < ?
+                                  AND x.fin_reserva > ?
+                                """,
+                                Integer.class,
+                                pasaporte,
+                                finNuevo,
+                                inicioNuevo
+                );
+
+                if (cruces != null && cruces > 0) {
+                        throw new BusinessException(
+                                        "No se puede seleccionar el vuelo porque el pasajero ya tiene un vuelo asignado en ese rango de fecha y hora."
+                        );
+                }
+        }
 
     private Map<Integer, ReservaSegmentoAsientoRequest> mapearSeleccionPorSegmento(
             List<ReservaSegmentoAsientoRequest> seleccionados,
@@ -993,6 +1112,9 @@ public class ReservaServiceImpl implements ReservaService {
         response.setSubtotal(reserva.getSubtotal());
         response.setRecargoTotal(reserva.getRecargoTotal());
         response.setTotal(reserva.getTotal());
+        response.setFechaReserva(reserva.getFechaReserva());
+
+        mapPagoResumen(reserva, response);
 
         if (reserva.getEstadoReservaId() != null) {
             estadoReservaRepository.findById(reserva.getEstadoReservaId())
@@ -1036,6 +1158,66 @@ public class ReservaServiceImpl implements ReservaService {
         response.setMensaje("Reserva encontrada");
 
         return response;
+    }
+
+    private void mapPagoResumen(
+            Reserva reserva,
+            ReservaResponse response
+    ) {
+
+        List<Pago> pagos = pagoRepository.findByReservaIdOrderByIdDesc(
+                reserva.getId()
+        );
+
+        Pago pagoPrincipal = pagos.stream()
+                .filter(p ->
+                        valorPago(p.getRecargoEquipaje())
+                                .compareTo(BigDecimal.ZERO) == 0
+                )
+                .findFirst()
+                .orElse(null);
+
+        if (pagoPrincipal == null) {
+            response.setPagada(false);
+            response.setPendientePago(false);
+            return;
+        }
+
+        response.setPagoId(pagoPrincipal.getId());
+        response.setEstadoPagoId(pagoPrincipal.getEstadoPagoId());
+        response.setMetodoPagoId(pagoPrincipal.getMetodoPagoId());
+        response.setMontoPago(pagoPrincipal.getMonto());
+
+        if (pagoPrincipal.getEstadoPagoId() != null) {
+            estadoPagoRepository.findById(pagoPrincipal.getEstadoPagoId())
+                    .ifPresent(estado -> {
+                        response.setEstadoPago(estado.getNombre());
+                        response.setPagada(
+                                "PAGADO".equalsIgnoreCase(estado.getNombre())
+                        );
+                        response.setPendientePago(
+                                "PENDIENTE".equalsIgnoreCase(estado.getNombre())
+                        );
+                    });
+        }
+
+        if (pagoPrincipal.getMetodoPagoId() != null) {
+            metodoPagoRepository.findById(pagoPrincipal.getMetodoPagoId())
+                    .ifPresent(metodo ->
+                            response.setMetodoPago(metodo.getNombre())
+                    );
+        }
+
+        facturaRepository.findFirstByPagoIdOrderByIdDesc(pagoPrincipal.getId())
+                .ifPresent(factura ->
+                        response.setFacturaId(factura.getId())
+                );
+    }
+
+    private BigDecimal valorPago(
+            BigDecimal value
+    ) {
+        return value != null ? value : BigDecimal.ZERO;
     }
 
     private ReservaBoletoItemResponse mapBoletoItem(

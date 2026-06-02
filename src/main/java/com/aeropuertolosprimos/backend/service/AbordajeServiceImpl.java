@@ -170,6 +170,10 @@ public class AbordajeServiceImpl implements AbordajeService {
                 segmentoOperadoId
         );
 
+        validarReservaPagadaParaAbordaje(
+                contexto.boleto.getReservaId()
+        );
+
         validarCheckInObligatorio(
                 contexto.boletoSegmento
         );
@@ -196,6 +200,10 @@ public class AbordajeServiceImpl implements AbordajeService {
                 request.getVueloOperadoId(),
                 request.getPasaporte(),
                 request.getSegmentoOperadoId()
+        );
+
+        validarReservaPagadaParaAbordaje(
+                contexto.boleto.getReservaId()
         );
 
         validarCheckInObligatorio(
@@ -566,8 +574,38 @@ public class AbordajeServiceImpl implements AbordajeService {
         );
 
         if (!tieneCheckIn) {
-            throw new BusinessException("El pasajero debe realizar check-in del segmento actual antes de abordar");
+            throw new BusinessException("El pasajero debe realizar check-in antes de abordar.");
         }
+    }
+
+    private void validarReservaPagadaParaAbordaje(
+            Integer reservaId
+    ) {
+
+        if (reservaId == null) {
+            throw new BusinessException("La reserva debe estar pagada para poder abordar.");
+        }
+
+        EstadoPago estadoPagado = estadoPagoRepository
+                .findByNombreIgnoreCase(ESTADO_PAGO_PAGADO)
+                .orElseThrow(() -> new BusinessException("Estado de pago PAGADO no encontrado"));
+
+        boolean tienePagoReserva = pagoRepository.findByReservaIdOrderByIdDesc(reservaId)
+                .stream()
+                .anyMatch(pago ->
+                        Objects.equals(pago.getEstadoPagoId(), estadoPagado.getId()) &&
+                                valor(pago.getRecargoEquipaje()).compareTo(BigDecimal.ZERO) == 0
+                );
+
+        if (!tienePagoReserva) {
+            throw new BusinessException("La reserva debe estar pagada para poder abordar.");
+        }
+    }
+
+    private BigDecimal valor(
+            BigDecimal value
+    ) {
+        return value != null ? value : BigDecimal.ZERO;
     }
 
     private BigDecimal calcularYActualizarEquipaje(

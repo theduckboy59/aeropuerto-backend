@@ -26,6 +26,10 @@ public interface PagoService {
             BigDecimal monto
     );
 
+    PagoResponse crearPagoReservaPendiente(
+            Integer reservaId
+    );
+
     PagoResponse confirmarPagoPendiente(
             Integer pagoId,
             ConfirmarPagoRequest request

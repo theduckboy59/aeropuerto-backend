@@ -25,14 +25,15 @@ public class PasajeroController {
 
     @GetMapping
     public List<PasajeroResponse> listar(
-            @RequestParam(required = false) String nombre
+            @RequestParam(required = false) String nombre,
+            @RequestParam(required = false) String pasaporte,
+            @RequestParam(required = false) Integer estadoId
     ) {
-
-        if (nombre != null && !nombre.isBlank()) {
-            return service.buscar(nombre);
-        }
-
-        return service.listar();
+        return service.buscarConFiltros(
+                nombre,
+                pasaporte,
+                estadoId
+        );
     }
 
     @GetMapping("/me")

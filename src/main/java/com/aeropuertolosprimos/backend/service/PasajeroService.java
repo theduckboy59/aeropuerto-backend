@@ -19,5 +19,11 @@ public interface PasajeroService {
 
     List<PasajeroResponse> buscar(String nombre);
 
+    List<PasajeroResponse> buscarConFiltros(
+            String nombre,
+            String pasaporte,
+            Integer estadoId
+    );
+
     void eliminar(Integer id);
 }

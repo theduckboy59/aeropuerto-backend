@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +22,8 @@ public class PagoServiceImpl implements PagoService {
 
     private static final String ESTADO_PAGO_PAGADO = "PAGADO";
     private static final String ESTADO_PAGO_PENDIENTE = "PENDIENTE";
+
+        private static final String ESTADO_RESERVA_CONFIRMADA = "CONFIRMADA";
 
     private static final String TIPO_PAGO_NORMAL = "NORMAL";
     private static final String TIPO_PAGO_RECARGO_EQUIPAJE = "RECARGO_EQUIPAJE";
@@ -30,6 +33,7 @@ public class PagoServiceImpl implements PagoService {
 
     private final MetodoPagoRepository metodoPagoRepository;
     private final EstadoPagoRepository estadoPagoRepository;
+        private final EstadoReservaRepository estadoReservaRepository;
     private final PagoRepository pagoRepository;
     private final FacturaRepository facturaRepository;
     private final HistorialBoletoRepository historialBoletoRepository;
@@ -49,6 +53,7 @@ public class PagoServiceImpl implements PagoService {
                 .orElseThrow(() -> new BusinessException("Método de pago no encontrado"));
 
         EstadoPago estadoPagado = obtenerEstadoPago(ESTADO_PAGO_PAGADO);
+        EstadoPago estadoPendiente = obtenerEstadoPago(ESTADO_PAGO_PENDIENTE);
 
         String tipoPago = obtenerTipoPago(request.getTipoPago());
 
@@ -90,7 +95,21 @@ public class PagoServiceImpl implements PagoService {
             throw new BusinessException("El monto debe ser mayor a cero");
         }
 
-        Pago pago = new Pago();
+        Pago pagoPendienteNormal = null;
+
+        if (tipoPago.equals(TIPO_PAGO_NORMAL)) {
+            pagoPendienteNormal = pagoRepository
+                    .findFirstByReservaIdAndRecargoEquipajeAndEstadoPagoIdOrderByIdDesc(
+                            reserva.getId(),
+                            BigDecimal.ZERO,
+                            estadoPendiente.getId()
+                    )
+                    .orElse(null);
+        }
+
+        Pago pago = pagoPendienteNormal != null
+                ? pagoPendienteNormal
+                : new Pago();
 
         pago.setReservaId(reserva.getId());
         pago.setMetodoPagoId(metodoPago.getId());
@@ -111,6 +130,10 @@ public class PagoServiceImpl implements PagoService {
                 reserva,
                 tipoPago
         );
+
+        if (tipoPago.equals(TIPO_PAGO_NORMAL)) {
+            marcarReservaConfirmada(reserva);
+        }
 
         PagoResponse response = mapResponse(pago);
 
@@ -184,6 +207,63 @@ public class PagoServiceImpl implements PagoService {
 
     @Override
     @Transactional
+    public PagoResponse crearPagoReservaPendiente(
+            Integer reservaId
+    ) {
+
+        if (reservaId == null) {
+            throw new BusinessException("Debe ingresar la reserva");
+        }
+
+        Reserva reserva = reservaRepository.findById(reservaId)
+                .orElseThrow(() -> new BusinessException("Reserva no encontrada"));
+
+        EstadoPago estadoPendiente = obtenerEstadoPago(ESTADO_PAGO_PENDIENTE);
+        EstadoPago estadoPagado = obtenerEstadoPago(ESTADO_PAGO_PAGADO);
+
+        pagoRepository
+                .findFirstByReservaIdAndRecargoEquipajeAndEstadoPagoIdOrderByIdDesc(
+                        reserva.getId(),
+                        BigDecimal.ZERO,
+                        estadoPagado.getId()
+                )
+                .ifPresent(pago -> {
+                    throw new BusinessException("La reserva ya está pagada");
+                });
+
+        Pago pagoPendiente = pagoRepository
+                .findFirstByReservaIdAndRecargoEquipajeAndEstadoPagoIdOrderByIdDesc(
+                        reserva.getId(),
+                        BigDecimal.ZERO,
+                        estadoPendiente.getId()
+                )
+                .orElse(null);
+
+        if (pagoPendiente != null) {
+            PagoResponse response = mapResponse(pagoPendiente);
+            response.setMensaje("Ya existe un pago pendiente para la reserva");
+            return response;
+        }
+
+        Pago pago = new Pago();
+
+        pago.setReservaId(reserva.getId());
+        pago.setMetodoPagoId(null);
+        pago.setMonto(valor(reserva.getTotal()));
+        pago.setRecargoEquipaje(BigDecimal.ZERO);
+        pago.setEstadoPagoId(estadoPendiente.getId());
+        pago.setFechaPago(null);
+
+        pago = pagoRepository.save(pago);
+
+        PagoResponse response = mapResponse(pago);
+        response.setMensaje("Pago pendiente generado para la reserva");
+
+        return response;
+    }
+
+    @Override
+    @Transactional
     public PagoResponse confirmarPagoPendiente(
             Integer pagoId,
             ConfirmarPagoRequest request
@@ -214,23 +294,35 @@ public class PagoServiceImpl implements PagoService {
         pago.setEstadoPagoId(estadoPagado.getId());
         pago.setFechaPago(LocalDateTime.now());
 
-        pago = pagoRepository.save(pago);
+        Pago pagoActualizado = pagoRepository.save(pago);
 
         Factura factura = generarFactura(
-                pago,
+                pagoActualizado,
                 request.getNit(),
                 request.getNombreCliente()
         );
 
-        reservaRepository.findById(pago.getReservaId())
-                .ifPresent(reserva ->
-                        registrarHistorialPago(
-                                reserva,
-                                TIPO_PAGO_RECARGO_EQUIPAJE
-                        )
-                );
+        reservaRepository.findById(pagoActualizado.getReservaId())
+                .ifPresent(reserva -> {
 
-        PagoResponse response = mapResponse(pago);
+                    boolean esRecargo = valor(pagoActualizado.getRecargoEquipaje())
+                            .compareTo(BigDecimal.ZERO) > 0;
+
+                    String tipoPago = esRecargo
+                            ? TIPO_PAGO_RECARGO_EQUIPAJE
+                            : TIPO_PAGO_NORMAL;
+
+                    registrarHistorialPago(
+                            reserva,
+                            tipoPago
+                    );
+
+                    if (!esRecargo) {
+                        marcarReservaConfirmada(reserva);
+                    }
+                });
+
+        PagoResponse response = mapResponse(pagoActualizado);
         response.setFactura(mapFactura(factura));
         response.setMensaje("Pago confirmado y factura generada correctamente");
 
@@ -463,4 +555,23 @@ public class PagoServiceImpl implements PagoService {
 
         return valor.trim();
     }
+
+        private void marcarReservaConfirmada(
+                        Reserva reserva
+        ) {
+
+                EstadoReserva estadoConfirmada = estadoReservaRepository
+                                .findByNombreIgnoreCase(ESTADO_RESERVA_CONFIRMADA)
+                                .orElseThrow(() ->
+                                                new BusinessException("Estado de reserva CONFIRMADA no encontrado")
+                                );
+
+                if (!Objects.equals(
+                                reserva.getEstadoReservaId(),
+                                estadoConfirmada.getId()
+                )) {
+                        reserva.setEstadoReservaId(estadoConfirmada.getId());
+                        reservaRepository.save(reserva);
+                }
+        }
 }

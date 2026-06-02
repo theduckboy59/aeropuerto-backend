@@ -49,6 +49,10 @@ public class CatalogoController {
 
     private final MetodoPagoRepository metodoPagoRepository;
 
+    private final EstadoReservaRepository estadoReservaRepository;
+    private final EstadoPagoRepository estadoPagoRepository;
+    private final EstadoBoletoRepository estadoBoletoRepository;
+
     private final EstadoAbordajeVueloRepository estadoAbordajeVueloRepository;
 
     @GetMapping("/status")
@@ -183,6 +187,21 @@ public class CatalogoController {
         return metodoPagoRepository.findByEstadoIdOrderByNombreAsc(
                 estadoActivoId
         );
+    }
+
+    @GetMapping("/estado-reserva")
+    public List<EstadoReserva> listarEstadoReserva() {
+        return estadoReservaRepository.findAll();
+    }
+
+    @GetMapping("/estado-pago")
+    public List<EstadoPago> listarEstadoPago() {
+        return estadoPagoRepository.findAll();
+    }
+
+    @GetMapping("/estado-boleto")
+    public List<EstadoBoleto> listarEstadoBoleto() {
+        return estadoBoletoRepository.findAll();
     }
 
     @GetMapping("/estado-abordaje-vuelo")

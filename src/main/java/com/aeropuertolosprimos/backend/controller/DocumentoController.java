@@ -9,15 +9,12 @@ import com.aeropuertolosprimos.backend.repository.BoletoRepository;
 import com.aeropuertolosprimos.backend.service.PagoService;
 import com.aeropuertolosprimos.backend.service.ReservaService;
 import com.aeropuertolosprimos.backend.util.export.ExportFileName;
-import com.aeropuertolosprimos.backend.util.export.PdfExportService;
+import com.aeropuertolosprimos.backend.util.export.DocumentoPdfService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/documentos")
@@ -27,7 +24,7 @@ public class DocumentoController {
     private final ReservaService reservaService;
     private final PagoService pagoService;
     private final BoletoRepository boletoRepository;
-    private final PdfExportService pdfExportService;
+        private final DocumentoPdfService documentoPdfService;
 
     @GetMapping(value = "/reservas/{reservaId}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> reservaPdf(
@@ -35,27 +32,7 @@ public class DocumentoController {
     ) {
 
         ReservaResponse reserva = reservaService.obtenerPorId(reservaId);
-
-        Map<String, Object> data = new LinkedHashMap<>();
-
-        data.put("Código reserva", reserva.getCodigoReserva());
-        data.put("Estado reserva", reserva.getEstadoReserva());
-
-        data.put("Código boleto", reserva.getCodigoBoleto());
-        data.put("Pase de abordar", reserva.getCodigoPaseAbordar());
-        data.put("Estado boleto", reserva.getEstadoBoleto());
-
-        data.put("Asiento", reserva.getAsiento());
-        data.put("Cantidad de maletas", reserva.getCantidadMaletas());
-
-        data.put("Subtotal", reserva.getSubtotal());
-        data.put("Recargo total", reserva.getRecargoTotal());
-        data.put("Total", reserva.getTotal());
-
-        byte[] pdf = pdfExportService.simpleKeyValuePdf(
-                "Reserva / Boleto",
-                data
-        );
+        byte[] pdf = documentoPdfService.reservaPdf(reserva);
 
         String base = "reserva_" + valorArchivo(
                 reserva.getCodigoReserva(),
@@ -81,30 +58,7 @@ public class DocumentoController {
         if (pago.getFactura() == null) {
             throw new BusinessException("El pago no tiene factura generada");
         }
-
-        Map<String, Object> data = new LinkedHashMap<>();
-
-        data.put("Serie", pago.getFactura().getSerie());
-        data.put("Número", pago.getFactura().getNumero());
-        data.put("UUID FEL", pago.getFactura().getUuidFel());
-        data.put("Estado FEL", pago.getFactura().getEstadoFel());
-        data.put("Fecha factura", pago.getFactura().getFechaFactura());
-
-        data.put("NIT", pago.getFactura().getNit());
-        data.put("Nombre cliente", pago.getFactura().getNombreCliente());
-
-        data.put("Código reserva", pago.getCodigoReserva());
-        data.put("Método de pago", pago.getMetodoPago());
-        data.put("Monto pagado", pago.getMonto());
-        data.put("Recargo equipaje", pago.getRecargoEquipaje());
-        data.put("Total reserva", pago.getTotalReserva());
-        data.put("Estado pago", pago.getEstadoPago());
-        data.put("Fecha pago", pago.getFechaPago());
-
-        byte[] pdf = pdfExportService.simpleKeyValuePdf(
-                "Factura",
-                data
-        );
+        byte[] pdf = documentoPdfService.facturaPdf(pago);
 
         String serie = valorArchivo(
                 pago.getFactura().getSerie(),
@@ -151,23 +105,10 @@ public class DocumentoController {
                     .orElse(null);
         }
 
-        Map<String, Object> data = new LinkedHashMap<>();
-
-        data.put("Código reserva", reserva.getCodigoReserva());
-        data.put("Código boleto", boleto.getCodigoBoleto());
-        data.put("Pase de abordar", boleto.getCodigoPaseAbordar());
-        data.put("Total boleto", boleto.getTotal());
-
-        if (item != null) {
-            data.put("Pasajero", item.getNombrePasajero());
-            data.put("Pasaporte", item.getPasaporte());
-            data.put("Asiento", item.getAsiento());
-            data.put("Cantidad de maletas", item.getCantidadMaletas());
-        }
-
-        byte[] pdf = pdfExportService.simpleKeyValuePdf(
-                "Boleto",
-                data
+        byte[] pdf = documentoPdfService.boletoPdf(
+                reserva,
+                boleto,
+                item
         );
 
         String base = "boleto_" + valorArchivo(

@@ -113,17 +113,27 @@ public class PasajeroServiceImpl implements PasajeroService {
 
     @Override
     public PasajeroResponse actualizar(Integer id, PasajeroRequest request) {
-
-        validar(request, false);
-
         Pasajero pasajero = repository.findById(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Pasajero no encontrado"));
 
-        User user = pasajero.getUser();
+        if (request.getPasaporte() == null || request.getPasaporte().isBlank()) {
+            throw new BusinessException("Debe ingresar los campos obligatorios");
+        }
+
+        if (request.getNombreCompleto() == null || request.getNombreCompleto().isBlank()) {
+            throw new BusinessException("Debe ingresar los campos obligatorios");
+        }
+
+        repository.findByPasaporte(request.getPasaporte().trim())
+                .ifPresent(existente -> {
+                    if (!Objects.equals(existente.getId(), id)) {
+                        throw new BusinessException("El número de pasaporte ya existe.");
+                    }
+                });
 
         pasajero.setPasaporte(request.getPasaporte().trim());
-        pasajero.setNombreCompleto(request.getNombreCompleto());
+        pasajero.setNombreCompleto(request.getNombreCompleto().trim());
         pasajero.setFechaNacimiento(request.getFechaNacimiento());
         pasajero.setNacionalidad(request.getNacionalidad());
         pasajero.setCodigoArea(request.getCodigoArea());
@@ -131,20 +141,39 @@ public class PasajeroServiceImpl implements PasajeroService {
         pasajero.setTelefonoEmergencia(request.getTelefonoEmergencia());
         pasajero.setDireccion(request.getDireccion());
 
-        user.setUsername(request.getUsername().trim());
-        user.setEmail(request.getEmail().trim());
+        User user = pasajero.getUser();
 
-        if (request.getPassword() != null &&
-                !request.getPassword().isBlank()) {
+        if (user != null) {
+            if (request.getUsername() != null && !request.getUsername().isBlank()) {
+                String username = request.getUsername().trim();
 
-            user.setPassword(passwordEncoder.encode(request.getPassword()));
+                userRepository.findByUsername(username)
+                        .ifPresent(existente -> {
+                            if (!Objects.equals(existente.getId(), user.getId())) {
+                                throw new BusinessException("El username ya existe.");
+                            }
+                        });
+
+                user.setUsername(username);
+            }
+
+            if (request.getEmail() != null && !request.getEmail().isBlank()) {
+                String email = request.getEmail().trim();
+
+                userRepository.findByEmail(email)
+                        .ifPresent(existente -> {
+                            if (!Objects.equals(existente.getId(), user.getId())) {
+                                throw new BusinessException("El email ya existe.");
+                            }
+                        });
+
+                user.setEmail(email);
+            }
+
+            userRepository.save(user);
         }
 
-        userRepository.save(user);
-
-        pasajero = repository.save(pasajero);
-
-        return mapResponse(pasajero);
+        return mapResponse(repository.save(pasajero));
     }
 
     @Override
@@ -162,9 +191,29 @@ public class PasajeroServiceImpl implements PasajeroService {
                 .toList();
     }
 
+            @Override
+            public List<PasajeroResponse> buscarConFiltros(
+                String nombre,
+                String pasaporte,
+                Integer estadoId
+            ) {
+
+            String nombreFiltro = nombre == null ? "" : nombre.trim().toLowerCase();
+            String pasaporteFiltro = pasaporte == null ? "" : pasaporte.trim().toLowerCase();
+
+            return repository.findAll()
+                .stream()
+                .filter(p -> estadoId == null || Objects.equals(p.getEstadoId(), estadoId))
+                .filter(p -> nombreFiltro.isBlank()
+                    || valor(p.getNombreCompleto()).toLowerCase().contains(nombreFiltro))
+                .filter(p -> pasaporteFiltro.isBlank()
+                    || valor(p.getPasaporte()).toLowerCase().contains(pasaporteFiltro))
+                .map(this::mapResponse)
+                .toList();
+            }
+
     @Override
     public void eliminar(Integer id) {
-
         Pasajero pasajero = repository.findById(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Pasajero no encontrado"));
@@ -172,13 +221,13 @@ public class PasajeroServiceImpl implements PasajeroService {
         Integer estadoInactivoId = catalogoEstadoService.obtenerInactivoId();
 
         pasajero.setEstadoId(estadoInactivoId);
+        repository.save(pasajero);
 
         if (pasajero.getUser() != null) {
-            pasajero.getUser().setEstadoId(estadoInactivoId);
-            userRepository.save(pasajero.getUser());
+            User user = pasajero.getUser();
+            user.setEstadoId(estadoInactivoId);
+            userRepository.save(user);
         }
-
-        repository.save(pasajero);
     }
 
     private void validar(PasajeroRequest request, boolean requirePassword) {
@@ -238,12 +287,13 @@ public class PasajeroServiceImpl implements PasajeroService {
     private PasajeroResponse mapResponse(Pasajero pasajero) {
 
         Integer estadoActivoId = catalogoEstadoService.obtenerActivoId();
+        User user = pasajero.getUser();
 
         return PasajeroResponse.builder()
                 .id(pasajero.getId())
-                .userId(pasajero.getUser().getId())
-                .username(pasajero.getUser().getUsername())
-                .email(pasajero.getUser().getEmail())
+                .userId(user != null ? user.getId() : null)
+                .username(user != null ? user.getUsername() : null)
+                .email(user != null ? user.getEmail() : null)
                 .pasaporte(pasajero.getPasaporte())
                 .nombreCompleto(pasajero.getNombreCompleto())
                 .fechaNacimiento(pasajero.getFechaNacimiento())
@@ -258,6 +308,12 @@ public class PasajeroServiceImpl implements PasajeroService {
                                 : "Inactivo"
                 )
                 .build();
+    }
+
+    private String valor(
+            String value
+    ) {
+        return value == null ? "" : value;
     }
 
     private Integer obtenerRolPasajeroId() {
