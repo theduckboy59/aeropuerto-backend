@@ -19,6 +19,22 @@ public class ReservaResponse {
 
     private String codigoReserva;
 
+    private String codigoVuelo;
+
+    private String ruta;
+
+    private String aeropuertoSalida;
+
+    private String aeropuertoLlegada;
+
+    private String fechaSalida;
+
+    private String horaSalida;
+
+    private String fechaLlegada;
+
+    private String horaLlegada;
+
     private String codigoBoleto;
 
     private String codigoPaseAbordar;

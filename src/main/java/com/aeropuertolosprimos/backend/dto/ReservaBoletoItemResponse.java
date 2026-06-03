@@ -14,6 +14,24 @@ public class ReservaBoletoItemResponse {
 
     private String pasaporte;
 
+    private Integer vueloOperadoId;
+
+    private String codigoVuelo;
+
+    private String ruta;
+
+    private String aeropuertoSalida;
+
+    private String aeropuertoLlegada;
+
+    private String fechaSalida;
+
+    private String horaSalida;
+
+    private String fechaLlegada;
+
+    private String horaLlegada;
+
     private Integer boletoId;
 
     private String codigoBoleto;

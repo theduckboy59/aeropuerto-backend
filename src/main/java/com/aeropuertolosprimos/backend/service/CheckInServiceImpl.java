@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -36,6 +37,7 @@ public class CheckInServiceImpl implements CheckInService {
     private final EstadoBoletoRepository estadoBoletoRepository;
     private final PagoRepository pagoRepository;
     private final HistorialBoletoRepository historialBoletoRepository;
+    private final CatalogoEstadoService catalogoEstadoService;
 
     @Override
     @Transactional
@@ -141,7 +143,7 @@ public class CheckInServiceImpl implements CheckInService {
         Boleto boleto = boletoRepository
                 .findFirstByCodigoPaseAbordarAndEstadoIdOrderByIdDesc(
                         codigoPaseAbordar.trim(),
-                        1
+                        obtenerEstadoActivoId()
                 )
                 .orElseThrow(() -> new BusinessException("Boleto no encontrado"));
 
@@ -171,7 +173,7 @@ public class CheckInServiceImpl implements CheckInService {
             return boletoRepository
                     .findFirstByCodigoPaseAbordarAndEstadoIdOrderByIdDesc(
                             request.getCodigoPaseAbordar().trim(),
-                            1
+                            obtenerEstadoActivoId()
                     )
                     .orElseThrow(() -> new BusinessException("Boleto no encontrado"));
         }
@@ -193,7 +195,7 @@ public class CheckInServiceImpl implements CheckInService {
                             pasajero.getId(),
                             request.getVueloOperadoId(),
                             estadoCancelado.getId(),
-                            1
+                            obtenerEstadoActivoId()
                     )
                     .orElseThrow(() -> new BusinessException("Boleto no encontrado para el pasajero y vuelo"));
         }
@@ -217,12 +219,9 @@ public class CheckInServiceImpl implements CheckInService {
                 .findByNombreIgnoreCase(ESTADO_PAGO_PAGADO)
                 .orElseThrow(() -> new BusinessException("Estado de pago PAGADO no encontrado"));
 
-        pagoRepository
-                .findFirstByReservaIdAndEstadoPagoIdOrderByIdDesc(
-                        boleto.getReservaId(),
-                        estadoPagado.getId()
-                )
-                .orElseThrow(() -> new BusinessException("La reserva no tiene pago registrado"));
+        if (!tienePagoPrincipal(boleto.getReservaId(), estadoPagado.getId())) {
+            throw new BusinessException("La reserva no tiene pago registrado");
+        }
     }
 
     private CheckInResponse mapResponse(
@@ -310,11 +309,43 @@ public class CheckInServiceImpl implements CheckInService {
         }
 
         return pagoRepository
-                .findFirstByReservaIdAndEstadoPagoIdOrderByIdDesc(
-                        reservaId,
-                        estadoPagado.getId()
-                )
-                .isPresent();
+                .findByReservaIdOrderByIdDesc(reservaId)
+                .stream()
+                .anyMatch(pago -> esPagoPrincipalPagado(pago, estadoPagado.getId()));
+    }
+
+    private boolean tienePagoPrincipal(
+            Integer reservaId,
+            Integer estadoPagadoId
+    ) {
+
+        if (reservaId == null || estadoPagadoId == null) {
+            return false;
+        }
+
+        return pagoRepository
+                .findByReservaIdOrderByIdDesc(reservaId)
+                .stream()
+                .anyMatch(pago -> esPagoPrincipalPagado(pago, estadoPagadoId));
+    }
+
+    private boolean esPagoPrincipalPagado(
+            Pago pago,
+            Integer estadoPagadoId
+    ) {
+
+        return Objects.equals(pago.getEstadoPagoId(), estadoPagadoId) &&
+                valor(pago.getRecargoEquipaje()).compareTo(BigDecimal.ZERO) == 0;
+    }
+
+    private BigDecimal valor(
+            BigDecimal value
+    ) {
+        return value != null ? value : BigDecimal.ZERO;
+    }
+
+    private Integer obtenerEstadoActivoId() {
+        return catalogoEstadoService.obtenerActivoId();
     }
 
     private String obtenerAsiento(

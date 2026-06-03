@@ -1108,6 +1108,10 @@ public class ReservaServiceImpl implements ReservaService {
         response.setReservaId(reserva.getId());
         response.setUserId(reserva.getUserId());
         response.setVueloOperadoId(reserva.getVueloOperadoId());
+        mapVueloResumenReserva(
+                reserva.getVueloOperadoId(),
+                response
+        );
         response.setCodigoReserva(reserva.getCodigoReserva());
         response.setSubtotal(reserva.getSubtotal());
         response.setRecargoTotal(reserva.getRecargoTotal());
@@ -1230,6 +1234,11 @@ public class ReservaServiceImpl implements ReservaService {
         response.setBoletoId(boleto.getId());
         response.setCodigoBoleto(boleto.getCodigoBoleto());
         response.setCodigoPaseAbordar(boleto.getCodigoPaseAbordar());
+        response.setVueloOperadoId(boleto.getVueloOperadoId());
+        mapVueloResumenBoleto(
+                boleto.getVueloOperadoId(),
+                response
+        );
         response.setPrecioBase(boleto.getPrecioBase());
         response.setRecargoEquipaje(boleto.getRecargoEquipaje());
         response.setTotal(boleto.getTotal());
@@ -1345,6 +1354,112 @@ public class ReservaServiceImpl implements ReservaService {
     ) {
 
         return prefijo + "-" + String.format("%06d", id);
+    }
+
+    private void mapVueloResumenReserva(
+            Integer vueloOperadoId,
+            ReservaResponse response
+    ) {
+
+        Map<String, Object> data = obtenerResumenVuelo(
+                vueloOperadoId
+        );
+
+        if (data.isEmpty()) {
+            return;
+        }
+
+        response.setCodigoVuelo(valor(data, "codigo_vuelo"));
+        response.setRuta(valor(data, "ruta"));
+        response.setAeropuertoSalida(valor(data, "aeropuerto_salida"));
+        response.setAeropuertoLlegada(valor(data, "aeropuerto_llegada"));
+        response.setFechaSalida(valor(data, "fecha_salida"));
+        response.setHoraSalida(valor(data, "hora_salida"));
+        response.setFechaLlegada(valor(data, "fecha_llegada"));
+        response.setHoraLlegada(valor(data, "hora_llegada"));
+    }
+
+    private void mapVueloResumenBoleto(
+            Integer vueloOperadoId,
+            ReservaBoletoItemResponse item
+    ) {
+
+        Map<String, Object> data = obtenerResumenVuelo(
+                vueloOperadoId
+        );
+
+        if (data.isEmpty()) {
+            return;
+        }
+
+        item.setCodigoVuelo(valor(data, "codigo_vuelo"));
+        item.setRuta(valor(data, "ruta"));
+        item.setAeropuertoSalida(valor(data, "aeropuerto_salida"));
+        item.setAeropuertoLlegada(valor(data, "aeropuerto_llegada"));
+        item.setFechaSalida(valor(data, "fecha_salida"));
+        item.setHoraSalida(valor(data, "hora_salida"));
+        item.setFechaLlegada(valor(data, "fecha_llegada"));
+        item.setHoraLlegada(valor(data, "hora_llegada"));
+    }
+
+    private Map<String, Object> obtenerResumenVuelo(
+            Integer vueloOperadoId
+    ) {
+
+        if (vueloOperadoId == null) {
+            return Map.of();
+        }
+
+        String sql = """
+                SELECT
+                    v.codigo_vuelo AS codigo_vuelo,
+                    COALESCE(a_s.codigo_iata, a_s.nombre, '-') AS aeropuerto_salida,
+                    COALESCE(a_l.codigo_iata, a_l.nombre, '-') AS aeropuerto_llegada,
+                    CONCAT(
+                        COALESCE(a_s.codigo_iata, a_s.nombre, '-'),
+                        ' -> ',
+                        COALESCE(a_l.codigo_iata, a_l.nombre, '-')
+                    ) AS ruta,
+                    CAST(vp.fecha_salida AS VARCHAR) AS fecha_salida,
+                    CAST(vp.hora_salida AS VARCHAR) AS hora_salida,
+                    CAST(vp.fecha_llegada AS VARCHAR) AS fecha_llegada,
+                    CAST(vp.hora_llegada AS VARCHAR) AS hora_llegada
+                FROM vuelo_operado vo
+                INNER JOIN vuelo_programado vp
+                    ON vp.id = vo.vuelo_programado_id
+                INNER JOIN vuelo v
+                    ON v.id = vp.vuelo_id
+                LEFT JOIN aeropuerto a_s
+                    ON a_s.id = vp.aeropuerto_salida_id
+                LEFT JOIN aeropuerto a_l
+                    ON a_l.id = vp.aeropuerto_llegada_id
+                WHERE vo.id = ?
+                """;
+
+        List<Map<String, Object>> rows = jdbc.queryForList(
+                sql,
+                vueloOperadoId
+        );
+
+        if (rows.isEmpty()) {
+            return Map.of();
+        }
+
+        return rows.get(0);
+    }
+
+    private String valor(
+            Map<String, Object> data,
+            String key
+    ) {
+
+        Object value = data.get(key);
+
+        if (value == null) {
+            return null;
+        }
+
+        return String.valueOf(value);
     }
 
     private static class PasajeroPlan {

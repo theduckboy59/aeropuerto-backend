@@ -52,6 +52,7 @@ public class CatalogoController {
     private final EstadoReservaRepository estadoReservaRepository;
     private final EstadoPagoRepository estadoPagoRepository;
     private final EstadoBoletoRepository estadoBoletoRepository;
+    private final EstadoCheckInRepository estadoCheckInRepository;
 
     private final EstadoAbordajeVueloRepository estadoAbordajeVueloRepository;
 
@@ -202,6 +203,11 @@ public class CatalogoController {
     @GetMapping("/estado-boleto")
     public List<EstadoBoleto> listarEstadoBoleto() {
         return estadoBoletoRepository.findAll();
+    }
+
+    @GetMapping("/estado-checkin")
+    public List<EstadoCheckIn> listarEstadoCheckIn() {
+        return estadoCheckInRepository.findAll();
     }
 
     @GetMapping("/estado-abordaje-vuelo")
