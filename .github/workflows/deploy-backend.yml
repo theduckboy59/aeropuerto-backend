@@ -38,12 +38,17 @@ jobs:
             BACKEND_OK=0
 
             for i in {1..60}; do
-              if curl -fsS http://localhost:8080/catalogos/status > /dev/null 2>&1; then
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+                -X POST http://localhost:8080/auth/login \
+                -H "Content-Type: application/json" \
+                -d '{"username":"healthcheck","password":"healthcheck"}' || true)
+
+              if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "400" ] || [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ]; then
                 BACKEND_OK=1
                 break
               fi
 
-              echo "Intento $i: backend aún no disponible..."
+              echo "Intento $i: backend aún no disponible... HTTP_CODE=$HTTP_CODE"
               sleep 2
             done
 
