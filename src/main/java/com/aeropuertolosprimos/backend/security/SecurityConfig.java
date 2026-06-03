@@ -38,90 +38,53 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
 
-                        // PUBLICOS
-                        //.requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/catalogos/**").permitAll()
-
-                        // CONSULTAS PUBLICAS
-                        //.requestMatchers("/vuelos/consulta/**").permitAll()
-
-                        // ADMIN SISTEMA
-                        //.requestMatchers("/empleados/**")
-                        //.hasRole("ADMIN_SISTEMA")
-                        //.requestMatchers("/empleados/**").permitAll()
-
-                        // ADMIN AEROLINEA
-                        //.requestMatchers("/tripulaciones/**")
-                        //.hasRole("ADMIN_AEROLINEA")
-
-                        //.requestMatchers("/disponibilidades/**")
-                        //.hasRole("ADMIN_AEROLINEA")
-
-                        //.requestMatchers("/aerolineas/**")
-                        //.hasRole("ADMIN_AEROLINEA")
-                        //.requestMatchers("/aerolineas/**").permitAll()
-
-                        //.requestMatchers("/destinos-autorizados/**")
-                       // .hasRole("ADMIN_AEROLINEA")
-
-                        //.requestMatchers("/avion/**")
-                        //.hasRole("ADMIN_AEROLINEA")
-
-                        //.requestMatchers("/modelo-avion/**")
-                        //.hasRole("ADMIN_AEROLINEA")
-
-                        //.requestMatchers("/config-clase-filas-avion/**")
-                        //.hasRole("ADMIN_AEROLINEA")
-
-                        //.requestMatchers("/asiento-ubi/**")
-                        //.hasRole("ADMIN_AEROLINEA")
-
-                        // ADMIN ABORDAJE
-                        //.requestMatchers("/abordaje/**")
-                        //.hasRole("ADMIN_ABORDAJE")
-
-                        // CONSULTAS AEROLINEA
-                        //.requestMatchers("/reportes/**")
-                        //.hasRole("CONSULTAS_AEROLINEA")
-
-                        // AEROPUERTOS
-                        //.requestMatchers("/aeropuertos/**")
-                        //.authenticated()
-
-                        .requestMatchers("/empleados/**").permitAll()
-                        .requestMatchers("/aerolineas/**").permitAll()
-                        .requestMatchers("/tripulaciones/**").permitAll()
-                        .requestMatchers("/disponibilidades/**").permitAll()
-                        .requestMatchers("/destinos-autorizados/**").permitAll()
-                        .requestMatchers("/avion/**").permitAll()
-                        .requestMatchers("/modelo-avion/**").permitAll()
-                        .requestMatchers("/config-clase-filas-avion/**").permitAll()
-                        .requestMatchers("/asiento-ubi/**").permitAll()
-                        .requestMatchers("/register").permitAll()
-                        .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/pasajeros/**").permitAll()
-                        .requestMatchers("/aeropuertos/**").permitAll()
-                        .requestMatchers("/modelo-avion/**").permitAll()
-                        .requestMatchers("/catalogos/**").permitAll()
-                        .requestMatchers("/vuelos/**").permitAll()
-                        .requestMatchers("/vuelos-operados/**").permitAll()
-                        .requestMatchers("/asientos-vuelo/**").permitAll()
-                        .requestMatchers("/reservas/**").permitAll()
-                        .requestMatchers("/abordaje/**").permitAll()
-
-                        .requestMatchers("/pagos/**").permitAll()
-
-                        .requestMatchers("/checkin/**").permitAll()
-
-                        .requestMatchers("/reportes/**").permitAll()
-                        .requestMatchers("/consultas/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/cliente/**").permitAll()
-                        .requestMatchers("/documentos/**").permitAll()
+                        .requestMatchers("/register").permitAll()
+                        .requestMatchers("/auth/register").permitAll()
+                        .requestMatchers("/auth/login").permitAll()
                         .requestMatchers("/error").permitAll()
 
+                        .requestMatchers(
+                                "/checkin/**",
+                                "/catalogos/estado-checkin"
+                        ).hasAnyRole(
+                                "CLIENTE",
+                                "ADMIN_ABORDAJE",
+                                "ADMIN_AEROLINEA",
+                                "ADMIN_SISTEMA"
+                        )
 
+                        .requestMatchers(
+                                "/cliente/**",
+                                "/reservas/**",
+                                "/pagos/**",
+                                "/documentos/reservas/**",
+                                "/documentos/pagos/**",
+                                "/documentos/boletos/**",
+                                "/pasajeros/me",
+                                "/catalogos/metodo-pago",
+                                "/catalogos/clase-vuelo",
+                                "/catalogos/tipo-asiento"
+                        ).hasAnyRole(
+                                "CLIENTE",
+                                "ADMIN_AEROLINEA",
+                                "ADMIN_SISTEMA"
+                        )
 
+                        .requestMatchers(
+                                "/abordaje/**",
+                                "/catalogos/estado-abordaje-vuelo",
+                                "/catalogos/estado-boleto"
+                        ).hasAnyRole(
+                                "ADMIN_ABORDAJE",
+                                "ADMIN_AEROLINEA",
+                                "ADMIN_SISTEMA"
+                        )
+
+                        .requestMatchers("/**").hasAnyRole(
+                                "ADMIN_AEROLINEA",
+                                "ADMIN_SISTEMA"
+                        )
 
                         .anyRequest().authenticated()
                 )
