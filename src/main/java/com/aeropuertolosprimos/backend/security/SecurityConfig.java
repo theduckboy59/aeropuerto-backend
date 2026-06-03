@@ -43,6 +43,12 @@ public class SecurityConfig {
                         .requestMatchers("/auth/register").permitAll()
                         .requestMatchers("/auth/login").permitAll()
                         .requestMatchers("/error").permitAll()
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/cliente/vuelos-disponibles/**",
+                                "/consultas/vuelo/**",
+                                "/reportes/consulta-vuelo/**"
+                        ).permitAll()
 
                         .requestMatchers(
                                 "/checkin/**",
